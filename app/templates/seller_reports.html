@@ -1,0 +1,39 @@
+
+{% extends "base.html" %}
+{% block title %}Relatórios por Vendedor{% endblock %}
+{% block content %}
+<div class="print-toolbar">
+  <button class="btn" onclick="window.print()">Imprimir relatório de vendedores</button>
+  <button class="btn ghost" type="button" onclick="document.body.classList.toggle('hide-money')">Ocultar/mostrar valores</button>
+</div>
+<div class="card">
+  <h2>Avaliação qualitativa</h2>
+  <form class="form-grid" method="post" action="/reports/sellers/review">
+    <label>Vendedor<select name="seller_id">{% for s in sellers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
+    <label>Período<input name="period" placeholder="06/2026"></label>
+    <label>Organização<input name="organization_score" type="number" min="1" max="5"></label>
+    <label>Follow-up<input name="followup_score" type="number" min="1" max="5"></label>
+    <label>Qualidade oportunidade<input name="opportunity_quality_score" type="number" min="1" max="5"></label>
+    <label>Margem praticada<input name="margin_score" type="number" min="1" max="5"></label>
+    <label>Previsibilidade<input name="predictability_score" type="number" min="1" max="5"></label>
+    <label>Pontos fortes<input name="strengths"></label>
+    <label>Melhorias<input name="improvements"></label>
+    <label>Observações<input name="notes"></label>
+    <div class="form-actions"><button class="btn">Salvar avaliação</button></div>
+  </form>
+</div>
+<div class="card">
+  <h2>Relatório quantitativo e qualitativo</h2>
+  <table>
+    <thead><tr><th>Vendedor</th><th>R.O</th><th>Propostas</th><th>Ganhos</th><th>Conversão</th><th>Vendido</th><th>Overprice</th><th>Comissão</th><th>Qualitativo</th></tr></thead>
+    <tbody>
+    {% for r in report %}
+      <tr>
+        <td>{{ r.seller.name }}</td><td>{{ r.metrics.opps }}</td><td>{{ r.metrics.sent }}</td><td>{{ r.metrics.won }}</td><td>{{ "%.1f"|format(r.metrics.conversion) }}%</td>
+        <td><span class="money-sensitive">{{ money(r.metrics.total_sale) }}</span></td><td><span class="money-sensitive">{{ money(r.metrics.total_over) }}</span></td><td><span class="money-sensitive">{{ money(r.metrics.total_comm) }}</span></td><td>{{ "%.1f"|format(r.quality) if r.quality else '-' }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,33 @@
+
+{% extends "base.html" %}
+{% block title %}Pedidos / Fechamento{% endblock %}
+{% block content %}
+<div class="print-toolbar">
+  <button class="btn" onclick="window.print()">Imprimir relatório de pedidos</button>
+  <button class="btn ghost" type="button" onclick="document.body.classList.toggle('hide-money')">Ocultar/mostrar valores</button>
+</div>
+{% for o in orders %}
+<div class="card">
+  <div class="section-head">
+    <div>
+      <h2>{{ o.order_number }} — {{ o.opp.client_name }}</h2>
+      <p>{{ o.opp.supplier_name }} · {{ o.opp.seller_name }} · Overprice {{ money(o.opp.total_overprice) }} · Custos {{ money(o.costs_total) }}</p>
+    </div>
+    <span class="pill">{{ o.status }}</span>
+  </div>
+  <form class="form-grid" method="post" action="/orders/{{ o.id }}/closing">
+    <label>NF fornecedor<input name="supplier_invoice" value="{{ o.closing.supplier_invoice if o.closing else '' }}"></label>
+    <label>NF iONM / cobrança<input name="ionm_invoice" value="{{ o.closing.ionm_invoice if o.closing else '' }}"></label>
+    <label>Data NF fornecedor<input name="supplier_invoice_date" value="{{ o.closing.supplier_invoice_date if o.closing else '' }}"></label>
+    <label>Data NF iONM<input name="ionm_invoice_date" value="{{ o.closing.ionm_invoice_date if o.closing else '' }}"></label>
+    <label>Previsão recebimento<input name="expected_receipt_date" value="{{ o.closing.expected_receipt_date if o.closing else '' }}"></label>
+    <label>Data recebimento<input name="receipt_date" value="{{ o.closing.receipt_date if o.closing else '' }}"></label>
+    <label>Status fiscal<select name="fiscal_status">{% for s in status_fiscal %}<option {% if o.closing and o.closing.fiscal_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+    <label>Status financeiro<select name="financial_status">{% for s in status_finance %}<option {% if o.closing and o.closing.financial_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+    <label>Valor recebido<input name="received_amount" value="{{ o.closing.received_amount if o.closing else '' }}"></label>
+    <label>Observações<input name="notes" value="{{ o.closing.notes if o.closing else '' }}"></label>
+    <div class="form-actions"><button class="btn">Salvar fechamento</button></div>
+  </form>
+</div>
+{% endfor %}
+{% endblock %}

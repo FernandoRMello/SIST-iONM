@@ -1,0 +1,119 @@
+
+{% extends "base.html" %}
+{% block title %}Configurações{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Empresa e impressão no servidor</h2>
+  <form class="form-grid" method="post" action="/settings/save">
+    <label>Empresa<input name="company_name" value="{{ cfg.company_name }}"></label>
+    <label>CNPJ<input name="company_document" value="{{ cfg.company_document }}"></label>
+    <label>E-mail<input name="company_email" value="{{ cfg.company_email }}"></label>
+    <label>Telefone<input name="company_phone" value="{{ cfg.company_phone }}"></label>
+    <label>Endereço<input name="company_address" value="{{ cfg.company_address }}"></label>
+    <label>Impressora servidor<input name="server_printer" value="{{ cfg.server_printer }}"></label>
+    <label>Caminho SumatraPDF<input name="sumatra_path" value="{{ cfg.sumatra_path }}"></label>
+    <label>Habilitar impressão servidor<select name="allow_server_print"><option {% if cfg.allow_server_print=='Não' %}selected{% endif %}>Não</option><option {% if cfg.allow_server_print=='Sim' %}selected{% endif %}>Sim</option></select></label>
+    <div class="form-actions"><button class="btn">Salvar</button></div>
+  </form>
+</div>
+<div class="card">
+  <h2>{% if edit_user %}Editar usuário{% else %}Criar usuário{% endif %}</h2>
+
+  {% if edit_user %}
+  <form class="inline-form" method="post" action="/settings/users/update/{{ edit_user.id }}">
+    <input name="username" placeholder="Usuário" value="{{ edit_user.username }}">
+    <input name="email" placeholder="E-mail do usuário" value="{{ edit_user.email or '' }}">
+    <input name="smtp_email" placeholder="E-mail SMTP individual" value="{{ edit_user.smtp_email or '' }}">
+    <input name="smtp_host" placeholder="SMTP host" value="{{ edit_user.smtp_host or '' }}">
+    <input name="smtp_port" placeholder="SMTP porta" value="{{ edit_user.smtp_port or '' }}">
+    <input name="email_signature" placeholder="Assinatura individual" value="{{ edit_user.email_signature or '' }}">
+    <input name="password" placeholder="Nova senha em branco mantém atual">
+    <select name="role">
+      <option {% if edit_user.role=='vendedor' %}selected{% endif %}>vendedor</option>
+      <option {% if edit_user.role=='admin' %}selected{% endif %}>admin</option>
+      <option {% if edit_user.role=='financeiro' %}selected{% endif %}>financeiro</option>
+    </select>
+    <select name="seller_id">
+      <option value="">Sem vendedor</option>
+      {% for s in sellers %}
+      <option value="{{ s.id }}" {% if edit_user.seller_id==s.id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    <select name="active">
+      <option {% if edit_user.active=='Sim' %}selected{% endif %}>Sim</option>
+      <option {% if edit_user.active=='Não' %}selected{% endif %}>Não</option>
+    </select>
+    <button class="btn">Salvar alteração</button>
+    <a class="btn ghost" href="/settings">Cancelar</a>
+  </form>
+  {% else %}
+  <form class="inline-form" method="post" action="/settings/users/create">
+    <input name="username" placeholder="Usuário">
+    <input name="email" placeholder="E-mail">
+    <input name="password" placeholder="Senha">
+    <select name="role"><option>vendedor</option><option>admin</option><option>financeiro</option></select>
+    <select name="seller_id"><option value="">Sem vendedor</option>{% for s in sellers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
+    <select name="active"><option>Sim</option><option>Não</option></select>
+    <button class="btn">Criar usuário</button>
+  </form>
+  {% endif %}
+
+  <table>
+    <thead>
+      <tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vendedor</th><th>Ativo</th><th>Ações</th></tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email or "-" }}</td>
+        <td>{{ u.role }}</td>
+        <td>{{ u.seller_name }}</td>
+        <td>{{ u.active }}</td>
+        <td>
+          <a href="/settings/users/edit/{{ u.id }}">Editar</a>
+          {% if u.username != 'fernando.mello' %}
+           · <a href="/settings/users/toggle/{{ u.id }}">{% if u.active=='Sim' %}Desativar{% else %}Ativar{% endif %}</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h2>E-mails por perfil</h2>
+  <p class="muted">Configure e-mail remetente, SMTP e assinatura padrão para disparo/envio de orçamento por perfil.</p>
+  <form method="post" action="/settings/role-email/save">
+    <table>
+      <thead>
+        <tr><th>Perfil</th><th>E-mail remetente</th><th>SMTP Host</th><th>Porta</th><th>Usuário SMTP</th><th>Senha SMTP</th><th>Assinatura</th></tr>
+      </thead>
+      <tbody>
+        {% for r in role_emails %}
+        <tr>
+          <td>{{ r.role }}</td>
+          <td><input name="email_from_{{ r.id }}" value="{{ r.email_from or '' }}"></td>
+          <td><input name="smtp_host_{{ r.id }}" value="{{ r.smtp_host or '' }}"></td>
+          <td><input name="smtp_port_{{ r.id }}" value="{{ r.smtp_port or '' }}"></td>
+          <td><input name="smtp_user_{{ r.id }}" value="{{ r.smtp_user or '' }}"></td>
+          <td><input name="smtp_password_{{ r.id }}" type="password" value="{{ r.smtp_password or '' }}"></td>
+          <td><input name="signature_{{ r.id }}" value="{{ r.signature or '' }}"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn">Salvar e-mails por perfil</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Backup</h2>
+  <a class="btn" href="/backup/export-db">Exportar DB SQLite</a>
+  <form class="inline-form" method="post" action="/backup/import-db" enctype="multipart/form-data">
+    <input type="file" name="file" accept=".db">
+    <button class="btn ghost">Importar DB</button>
+  </form>
+</div>
+{% endblock %}

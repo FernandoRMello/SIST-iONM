@@ -1,0 +1,74 @@
+{% extends "base.html" %}{% block title %}Card {{ o.ro_number }}{% endblock %}{% block content %}
+<div class="deal-header"><div><h2>{{ o.ro_number }} — {{ o.client_name }}</h2><p>{{ o.supplier_name }} · {{ o.seller_name }} · <span class="pill">{{ o.status }}</span> · <span class="prob-badge {{ prob_class(o.probability) }}">{{ "%.0f"|format(o.probability or 0) }}%</span></p></div><div><a class="btn ghost" href="/opportunities">Voltar</a><a class="btn" href="/opportunities/{{ o.id }}/proposal-pdf">Proposta PDF</a><a class="btn ghost" href="/opportunities/{{ o.id }}/ro-supplier-pdf">R.O Fornecedor</a></div></div>
+<div class="deal-tabs"><a class="active">Geral</a><a>Produtos</a><a>Comentários</a><a>Anotações</a><a>Documentos</a></div>
+<div class="grid2">
+  <div class="card">
+    <h2>Sobre o negócio</h2>
+    <p><b>Valor proposta:</b> <span class="money-sensitive">{{ money(o.total_sale) }}</span></p>
+    <p><b>Overprice:</b> <span class="money-sensitive">{{ money(o.total_overprice) }}</span></p>
+    <p><b>Comissão:</b> <span class="money-sensitive">{{ money(o.total_commission) }}</span></p>
+    <p><b>Pagamento desejado:</b> {{ o.payment_terms or '-' }}</p>
+    <p><b>Observações:</b> {{ o.notes or '-' }}</p>
+  </div>
+
+  <div class="card">
+    <div class="section-head">
+      <div>
+        <h2>Produtos do card</h2>
+        <p>Adicione produtos diretamente nesta oportunidade.</p>
+      </div>
+    </div>
+
+    <form method="post" action="/opportunities/{{ o.id }}/add-item" class="form-grid card-product-form">
+      <label>Produto
+        <select name="product_id" required>
+          {% for p in products %}
+          <option value="{{ p.id }}">
+            {{ p.name }} — padrão {{ money(p.ionm_price) }}
+          </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Quantidade
+        <input name="quantity" value="1">
+      </label>
+      <label>Preço de venda unitário
+        <input name="sale_unit_price" placeholder="Deixe em branco para preço padrão">
+      </label>
+      <label>% Comissão vendedor
+        <input name="seller_commission_rate" placeholder="Padrão do vendedor">
+      </label>
+      <div class="form-actions">
+        <button class="btn">Adicionar produto</button>
+      </div>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Produto</th>
+          <th>Qtd</th>
+          <th>Fornecedor</th>
+          <th>Venda</th>
+          <th>Overprice</th>
+          <th>Comissão</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for it in o['items'] %}
+        <tr>
+          <td>{{ it.product_name }}</td>
+          <td>{{ it.quantity }}</td>
+          <td>{{ money(it.supplier_total) }}</td>
+          <td>{{ money(it.sale_total) }}</td>
+          <td>{{ money(it.overprice) }}</td>
+          <td>{{ money(it.commission) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="grid2"><div class="card"><h2>Comentários</h2>{% for c in comments %}<p><b>{{ c.full_name or c.username }}:</b> {{ c.content }} <small>{{ c.created_at }}</small></p>{% endfor %}<form method="post" action="/opportunities/{{ o.id }}/comment" class="inline-form"><input name="content" placeholder="Comentar no card..."><button class="btn">Comentar</button></form></div><div class="card"><h2>Anotações</h2>{% for n in notes %}<p><b>{{ n.title }}</b><br>{{ n.content }}</p>{% endfor %}<form method="post" action="/opportunities/{{ o.id }}/note" class="form-grid"><label>Título<input name="title"></label><label>Anotação<input name="content"></label><div class="form-actions"><button class="btn">Salvar anotação</button></div></form></div></div>
+<div class="card"><h2>Documentos do card</h2><form method="post" action="/opportunities/{{ o.id }}/document" enctype="multipart/form-data" class="inline-form"><input name="title" placeholder="Nome do documento"><select name="doc_type"><option>Proposta Comercial</option><option>R.O Fornecedor</option><option>Orçamento</option><option>NF</option><option>Comprovante</option><option>Outro</option></select><input type="file" name="file"><button class="btn">Anexar</button></form><table><thead><tr><th>Documento</th><th>Tipo</th><th>Usuário</th><th>Data</th><th>Arquivo</th></tr></thead><tbody>{% for d in docs %}<tr><td>{{ d.title }}</td><td>{{ d.doc_type }}</td><td>{{ d.username }}</td><td>{{ d.created_at }}</td><td>{% if d.file_path %}<a href="/{{ d.file_path }}" target="_blank">Abrir</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

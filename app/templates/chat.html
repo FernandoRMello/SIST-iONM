@@ -1,0 +1,55 @@
+
+{% extends "base.html" %}
+{% block title %}Chat{% endblock %}
+{% block content %}
+<div class="chat-layout realtime-chat-page">
+  <div class="card chat-rooms">
+    <h2>Conversas</h2>
+    {% for r in rooms %}
+      <a class="chat-room" href="/chat?room_id={{ r.id }}">{{ "# " if r.room_type == "general" else "" }}{{ r.name }}</a>
+    {% endfor %}
+    <h3>Usuários</h3>
+    {% for u in users %}
+      <a class="chat-user-start" href="/chat/private/{{ u.id }}">
+        {% if u.avatar_path %}<img src="/{{ u.avatar_path }}">{% else %}<span>{{ (u.full_name or u.username or '?')[:1] }}</span>{% endif %}
+        {{ u.full_name or u.username }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="card chat-window" data-room-id="{{ room_id }}">
+    <div class="chat-page-head">
+      <h2>Chat em tempo real</h2>
+      <p>Sala selecionada: {{ room_id }}</p>
+    </div>
+
+    <div class="messages realtime-messages" id="fullChatMessages">
+      {% for m in messages %}
+      <div class="msg {% if m.user_id == user.id %}mine{% else %}other{% endif %}">
+        <div class="msg-author">
+          {% if m.avatar_path %}<img src="/{{ m.avatar_path }}">{% else %}<span>{{ (m.full_name or m.username or '?')[:1] }}</span>{% endif %}
+          <strong>{{ m.full_name or m.username }}</strong>
+        </div>
+        <p>{{ m.content }}</p>
+        {% if m.attachment_path %}<a href="/{{ m.attachment_path }}" target="_blank">Anexo</a>{% endif %}
+        <small>{{ m.created_at }}</small>
+      </div>
+      {% endfor %}
+    </div>
+
+    <form class="chat-form realtime-full-form" id="fullChatForm">
+      <input type="hidden" id="fullChatRoomId" value="{{ room_id }}">
+      <input id="fullChatInput" name="content" placeholder="Digite sua mensagem...">
+      <button class="btn" type="submit">Enviar</button>
+    </form>
+  </div>
+</div>
+
+<script>
+window.addEventListener("DOMContentLoaded", function(){
+  if (window.SistIonmChat) {
+    SistIonmChat.connectFullChat({{ room_id }});
+  }
+});
+</script>
+{% endblock %}

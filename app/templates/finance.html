@@ -1,0 +1,26 @@
+
+{% extends "base.html" %}
+{% block title %}Fiscal / Financeiro{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Novo custo</h2>
+  <form class="inline-form" method="post" action="/finance/costs/add">
+    <select name="order_id"><option value="">Sem pedido</option>{% for o in orders %}<option value="{{ o.id }}">{{ o.order_number }}</option>{% endfor %}</select>
+    <input name="description" placeholder="Descrição">
+    <select name="category">{% for c in cost_categories %}<option>{{ c }}</option>{% endfor %}</select>
+    <select name="cost_center">{% for c in cost_centers %}<option>{{ c }}</option>{% endfor %}</select>
+    <input name="amount" placeholder="Valor">
+    <input name="date" placeholder="Data">
+    <input name="vendor" placeholder="Fornecedor/Vendedor">
+    <input name="document" placeholder="Documento">
+    <select name="billable"><option>Não</option><option>Sim</option></select>
+    <input name="notes" placeholder="Obs.">
+    <button class="btn">Adicionar custo</button>
+  </form>
+</div>
+<div class="grid2">
+  <div class="card"><h2>Contas a receber</h2><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Descrição</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for r in receivables %}<tr><td>{{ r.order_number }}</td><td>{{ r.client_name }}</td><td>{{ r.description }}</td><td>{{ money(r.amount) }}</td><td>{{ r.status }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="card"><h2>Contas a pagar</h2><table><thead><tr><th>Pedido</th><th>Descrição</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for p in payables %}<tr><td>{{ p.order_number }}</td><td>{{ p.description }}</td><td>{{ money(p.amount) }}</td><td>{{ p.status }}</td></tr>{% endfor %}</tbody></table></div>
+</div>
+<div class="card"><h2>Custos</h2><table><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Valor</th><th>Data</th></tr></thead><tbody>{% for c in costs %}<tr><td>{{ c.order_number }}</td><td>{{ c.description }}</td><td>{{ c.category }}</td><td>{{ c.cost_center }}</td><td>{{ money(c.amount) }}</td><td>{{ c.date }}</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

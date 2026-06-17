@@ -1,0 +1,16 @@
+
+{% extends "base.html" %}
+{% block public %}
+<div class="login-page">
+  <form class="login-card" method="post" action="/login">
+    <h1>OverpriceON</h1>
+    <p>Sistema web local</p>
+    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+    <label>Usuário</label>
+    <input name="username" autocomplete="username" required>
+    <label>Senha</label>
+    <input name="password" type="password" autocomplete="current-password" required>
+    <button>Entrar</button>
+  </form>
+</div>
+{% endblock %}

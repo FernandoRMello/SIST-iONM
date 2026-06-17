@@ -1,0 +1,93 @@
+
+{% extends "base.html" %}
+{% block title %}Pipeline / R.O{% endblock %}
+{% block content %}
+<div class="pipeline-head">
+  <div>
+    <h2>Pipeline / Registro de Oportunidade</h2>
+    <p>Visualize em Kanban ou Lista. No Kanban, mova os cards por clique.</p>
+  </div>
+  <div class="pipeline-actions">
+    <a class="btn ghost" href="/opportunities?view_mode=kanban">Kanban</a>
+    <a class="btn ghost" href="/opportunities?view_mode=list">Lista</a>
+    <button class="btn" type="button" onclick="document.body.classList.toggle('new-ro-open')">Nova R.O</button>
+  </div>
+</div>
+
+<div class="card new-ro-panel">
+  <h2>Nova oportunidade</h2>
+  <form class="form-grid" method="post" action="/opportunities/create">
+    <label>Cliente<select name="client_id">{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
+    <label>Fornecedor<select name="supplier_id">{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
+    {% if user.role == 'admin' %}
+    <label>Vendedor<select name="seller_id">{% for s in sellers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
+    {% endif %}
+    <label>Status<select name="status">{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select></label>
+    <label>Probabilidade %<input name="probability" value="40"></label>
+    <label>Previsão fechamento<input name="forecast_date" placeholder="AAAA-MM-DD"></label>
+    <label>Próximo follow-up<input name="next_followup" placeholder="AAAA-MM-DD"></label>
+    <label>Formas de pagamento desejadas<input name="payment_terms" placeholder="Ex.: boleto 28 dias, cartão, transferência"></label>
+    <label>Observações<input name="notes"></label>
+    <div class="form-actions"><button class="btn">Criar R.O</button></div>
+  </form>
+</div>
+
+{% if view_mode == 'list' %}
+<div class="card">
+  <h2>Lista de oportunidades</h2>
+  <table>
+    <thead><tr><th>R.O</th><th>Cliente</th><th>Vendedor</th><th>Status</th><th>Prob.</th><th>Proposta</th><th>Overprice</th><th>Ações</th></tr></thead>
+    <tbody>
+    {% for o in opps %}
+      <tr class="opportunity-row {{ prob_class(o.probability) }}">
+        <td><a href="/opportunities/{{ o.id }}/card">{{ o.ro_number }}</a></td>
+        <td>{{ o.client_name }}</td>
+        <td>{{ o.seller_name }}</td>
+        <td><span class="pill">{{ o.status }}</span></td>
+        <td><span class="prob-badge {{ prob_class(o.probability) }}">{{ "%.0f"|format(o.probability or 0) }}%</span></td>
+        <td class="money-sensitive">{{ money(o.total_sale) }}</td>
+        <td class="money-sensitive">{{ money(o.total_overprice) }}</td>
+        <td>
+          <a href="/opportunities/{{ o.id }}/move/prev">←</a>
+          <a href="/opportunities/{{ o.id }}/move/next">→</a>
+          <a href="/opportunities/{{ o.id }}/card">Abrir</a>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="kanban-board">
+  {% for status in statuses %}
+  <div class="kanban-column">
+    <div class="kanban-title">
+      <strong>{{ status }}</strong>
+      <span>{{ kanban.get(status, [])|length }}</span>
+    </div>
+    <div class="kanban-cards">
+      {% for o in kanban.get(status, []) %}
+      <div class="kanban-card {{ prob_class(o.probability) }}">
+        <div class="kanban-card-top">
+          <a href="/opportunities/{{ o.id }}/card">{{ o.ro_number }}</a>
+          <span class="prob-badge {{ prob_class(o.probability) }}">{{ "%.0f"|format(o.probability or 0) }}%</span>
+        </div>
+        <h3>{{ o.client_name }}</h3>
+        <p>{{ o.seller_name }}</p>
+        <div class="kanban-values">
+          <span>Proposta <b class="money-sensitive">{{ money(o.total_sale) }}</b></span>
+          <span>Overprice <b class="money-sensitive">{{ money(o.total_overprice) }}</b></span>
+          <span>Comissão <b class="money-sensitive">{{ money(o.total_commission) }}</b></span>
+        </div>
+        <div class="kanban-move">
+          <a class="btn ghost" href="/opportunities/{{ o.id }}/move/prev">← Voltar</a>
+          <a class="btn" href="/opportunities/{{ o.id }}/move/next">Avançar →</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

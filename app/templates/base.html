@@ -1,0 +1,118 @@
+
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>{{ app_name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1730">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+</head>
+<body>
+{% if user %}
+<button class="mobile-menu-btn" type="button" onclick="document.body.classList.toggle('menu-open')">☰ Menu</button>
+<button class="sidebar-toggle" type="button" onclick="document.body.classList.toggle('sidebar-collapsed')" title="Ocultar menu">☰</button>
+<div class="mobile-backdrop" onclick="document.body.classList.remove('menu-open')"></div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-title">SIST-iONM</div>
+      <div class="brand-sub">Portal Corporativo</div>
+    </div>
+    <nav onclick="document.body.classList.remove('menu-open')">
+      <div class="nav-group">Portal</div>
+      <a href="/feed"><span class="nav-ico">🏠</span><span class="nav-text">Feed</span></a>
+      <a href="/chat"><span class="nav-ico">💬</span><span class="nav-text">Chat</span></a>
+      <a href="/profile"><span class="nav-ico">👤</span><span class="nav-text">Meu Perfil</span></a>
+      <a href="/orgchart"><span class="nav-ico">🌐</span><span class="nav-text">Organograma</span></a>
+
+      <div class="nav-group">CRM</div>
+      <a href="/"><span class="nav-ico">📊</span><span class="nav-text">Dashboard</span></a>
+      <a href="/cadastros/clients"><span class="nav-ico">🏢</span><span class="nav-text">Clientes</span></a>
+      <a href="/opportunities"><span class="nav-ico">🧩</span><span class="nav-text">Pipeline / R.O</span></a>
+      <a href="/orders"><span class="nav-ico">📄</span><span class="nav-text">Pedidos</span></a>
+      <a href="/commissions"><span class="nav-ico">💰</span><span class="nav-text">Comissões</span></a>
+
+      <div class="nav-group">Produtos</div>
+      <a href="/cadastros/products"><span class="nav-ico">📦</span><span class="nav-text">Catálogo de Produtos</span></a>
+
+      <div class="nav-group">Backoffice</div>
+      <a href="/finance"><span class="nav-ico">🏦</span><span class="nav-text">Contas / Custos</span></a>
+      <a href="/cadastros/suppliers"><span class="nav-ico">🤝</span><span class="nav-text">Fornecedores</span></a>
+      <a href="/backoffice/purchases"><span class="nav-ico">🛒</span><span class="nav-text">Compras</span></a>
+
+      <div class="nav-group">Gestão</div>
+      {% if user.username == 'fernando.mello' %}<a href="/bi-gerencial"><span class="nav-ico">📈</span><span class="nav-text">BI Gerencial</span></a>{% endif %}
+      {% if user.role == 'admin' %}<a href="/cadastros/sellers"><span class="nav-ico">🧑‍💼</span><span class="nav-text">Vendedores</span></a>{% endif %}
+      {% if user.role == 'admin' %}<a href="/settings"><span class="nav-ico">⚙️</span><span class="nav-text">Configurações</span></a>{% endif %}
+      {% if user.role == 'admin' %}<a href="/admin/permissions"><span class="nav-ico">🔐</span><span class="nav-text">Permissões</span></a>{% endif %}
+    </nav>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <div>
+        <h1>{% block title %}SIST-iONM{% endblock %}</h1>
+        <p>{{ cfg.company_name }}</p>
+      </div>
+      <div class="userbox">
+        {{ user.username }} · {{ user.role }}
+        <a class="btn ghost" href="/logout">Sair</a>
+      </div>
+    </header>
+    <section class="content">
+      {% block content %}{% endblock %}
+    </section>
+  </main>
+
+  <div class="bitrix-chat-rail" id="bitrixChatRail">
+    <button class="rail-icon rail-bell" type="button" onclick="SistIonmChat.toggleNotifications()" title="Notificações">
+      🔔 <span class="rail-badge" id="chatTotalBadge">0</span>
+    </button>
+    <button class="rail-icon rail-general" type="button" onclick="SistIonmChat.openGeneral()" title="Chat geral">💬</button>
+    <div class="rail-divider"></div>
+    <div class="rail-contacts" id="railContacts"></div>
+  </div>
+
+  <div class="bitrix-chat-panel" id="bitrixChatPanel">
+    <div class="bitrix-chat-header">
+      <div>
+        <strong id="bitrixChatTitle">Chat SIST-iONM</strong>
+        <span id="bitrixChatSubtitle">Tempo real</span>
+      </div>
+      <div class="bitrix-chat-header-actions">
+        <button type="button" onclick="SistIonmChat.minimize()" title="Minimizar">—</button>
+        <button type="button" onclick="SistIonmChat.close()" title="Fechar">×</button>
+      </div>
+    </div>
+
+    <div class="bitrix-chat-search">
+      <input id="bitrixChatSearch" placeholder="Buscar contato...">
+    </div>
+
+    <div class="bitrix-chat-body">
+      <aside class="bitrix-chat-contacts">
+        <button class="bitrix-contact active" id="bitrixGeneralContact" onclick="SistIonmChat.openGeneral()">
+          <span class="contact-avatar general">💬</span>
+          <span class="contact-info"><b>Chat geral</b><small>Todos os usuários</small></span>
+          <span class="contact-badge" data-room-badge="general">0</span>
+        </button>
+        <div id="bitrixContactsList"></div>
+      </aside>
+
+      <section class="bitrix-chat-conversation">
+        <div class="bitrix-chat-messages" id="bitrixChatMessages"></div>
+        <form class="bitrix-chat-form" id="bitrixChatForm">
+          <input id="bitrixChatInput" placeholder="Digite uma mensagem...">
+          <button class="btn" type="submit">➤</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+<script src="/static/chat_realtime.js"></script>
+{% else %}
+{% block public %}{% endblock %}
+{% endif %}
+</body>
+</html>

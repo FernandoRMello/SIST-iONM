@@ -1,0 +1,59 @@
+
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="dashboard-toolbar">
+  <div>
+    <h2>Painel comercial</h2>
+    <p>Pipeline, propostas, overprice e comissão com visualização rápida por probabilidade.</p>
+  </div>
+  <button class="btn ghost" type="button" onclick="document.body.classList.toggle('hide-money')">Ocultar/mostrar valores</button>
+</div>
+
+<div class="kpi-grid">
+  <div class="card kpi kpi-blue"><span>Oportunidades</span><strong>{{ kpis.opps }}</strong></div>
+  <div class="card kpi kpi-purple"><span>Pedidos</span><strong>{{ kpis.orders }}</strong></div>
+  <div class="card kpi kpi-green"><span>Overprice previsto</span><strong class="money-sensitive">{{ money(kpis.over) }}</strong></div>
+  <div class="card kpi kpi-orange"><span>Comissão total</span><strong class="money-sensitive">{{ money(kpis.comm) }}</strong></div>
+  <div class="card kpi kpi-teal"><span>A receber</span><strong class="money-sensitive">{{ money(kpis.recv) }}</strong></div>
+  <div class="card kpi kpi-red"><span>A pagar</span><strong class="money-sensitive">{{ money(kpis.pay) }}</strong></div>
+</div>
+
+<div class="card">
+  <div class="section-head">
+    <div>
+      <h2>Oportunidades recentes</h2>
+      <p>A cor da oportunidade indica a probabilidade de fechamento: vermelho menor, verde maior.</p>
+    </div>
+    <a class="btn" href="/opportunities">Nova R.O</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>R.O</th>
+        <th>Cliente</th>
+        <th>Vendedor</th>
+        <th>Status</th>
+        <th>Prob.</th>
+        <th>Valor proposta</th>
+        <th>Overprice</th>
+        <th>Comissão</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for o in opps %}
+      <tr class="opportunity-row {{ prob_class(o.probability) }}">
+        <td>{{ o.ro_number }}</td>
+        <td>{{ o.client_name }}</td>
+        <td>{{ o.seller_name }}</td>
+        <td><span class="pill">{{ o.status }}</span></td>
+        <td><span class="prob-badge">{{ "%.0f"|format(o.probability or 0) }}%</span></td>
+        <td class="money-sensitive">{{ money(o.total_sale) }}</td>
+        <td class="money-sensitive">{{ money(o.total_overprice) }}</td>
+        <td class="money-sensitive">{{ money(o.total_commission) }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

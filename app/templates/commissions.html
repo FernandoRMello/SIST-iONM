@@ -1,0 +1,19 @@
+
+{% extends "base.html" %}
+{% block title %}Comissões{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Comissões por vendedor</h2>
+  <table>
+    <thead><tr><th>Vendedor</th><th>Pedido</th><th>Cliente</th><th>Produto</th><th>Fornecedor</th><th>Venda</th><th>Overprice</th><th>%</th><th>Comissão</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.seller_name }}</td><td>{{ r.order_number or '' }}</td><td>{{ r.client_name }}</td><td>{{ r.product_name }}</td>
+        <td>{{ money(r.supplier_total) }}</td><td>{{ money(r.sale_total) }}</td><td>{{ money(r.overprice) }}</td><td>{{ r.seller_commission_rate }}%</td><td>{{ money(r.commission) }}</td><td><span class="pill">{{ r.commission_status }}</span></td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

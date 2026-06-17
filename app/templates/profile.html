@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Meu Perfil{% endblock %}{% block content %}
+<div class="card profile-avatar-card">
+  <div class="profile-avatar">
+    {% if profile and profile.avatar_path %}
+      <img src="/{{ profile.avatar_path }}" alt="Foto do perfil">
+    {% else %}
+      <div class="avatar avatar-large">{{ (profile.full_name or profile.username or '?')[:1] }}</div>
+    {% endif %}
+  </div>
+  <div>
+    <h2>Foto do perfil</h2>
+    <p class="muted">Essa imagem aparece no chat e nos registros internos.</p>
+    <form method="post" action="/profile/avatar" enctype="multipart/form-data" class="inline-form">
+      <input type="file" name="avatar" accept="image/*">
+      <button class="btn">Atualizar foto</button>
+    </form>
+  </div>
+</div>
+
+<div class="card"><h2>Perfil do usuário</h2><form class="form-grid" method="post" action="/profile/save"><label>Nome completo<input name="full_name" value="{{ profile.full_name if profile else '' }}"></label><label>E-mail para orçamento<input name="email" value="{{ profile.email if profile else '' }}"></label><label>Telefone<input name="phone" value="{{ profile.phone if profile else '' }}"></label><label>Cargo<input name="role_title" value="{{ profile.role_title if profile else '' }}"></label><label>Departamento<select name="department_id"><option value="">Sem departamento</option>{% for d in departments %}<option value="{{ d.id }}" {% if profile and profile.department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></label><label>Bio<input name="bio" value="{{ profile.bio if profile else '' }}"></label><div class="form-actions"><button class="btn">Salvar perfil</button></div></form></div>
+{% endblock %}

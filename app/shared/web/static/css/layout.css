@@ -357,3 +357,329 @@
     padding-inline: var(--space-6);
   }
 }
+
+.bitrix-chat-rail {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: calc(var(--z-toast) + 2);
+  display: flex;
+  width: 58px;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: calc(var(--topbar-height) + var(--space-2)) var(--space-2) var(--space-3);
+  background: linear-gradient(180deg, var(--color-navy-950), var(--color-navy-700));
+  box-shadow: -8px 0 24px rgb(8 20 38 / 0.16);
+}
+
+.rail-icon,
+.rail-contact {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.12);
+  color: var(--color-text-inverse);
+}
+
+.rail-contact img,
+.rail-contact > span:not(.rail-contact-badge) {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-teal-700);
+  color: var(--color-text-inverse);
+  font-weight: 800;
+}
+
+.rail-divider {
+  width: 32px;
+  height: 1px;
+  background: rgb(255 255 255 / 0.24);
+}
+
+.rail-contacts {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.rail-contact-badge,
+.contact-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding-inline: 3px;
+  border: 2px solid var(--color-navy-950);
+  border-radius: var(--radius-pill);
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.bitrix-chat-panel {
+  position: fixed;
+  right: 70px;
+  bottom: var(--space-5);
+  z-index: calc(var(--z-toast) + 1);
+  display: none;
+  width: min(760px, calc(100vw - 94px));
+  height: min(620px, calc(100vh - 40px));
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: 0 28px 80px rgb(8 20 38 / 0.28);
+}
+
+body.bitrix-chat-open .bitrix-chat-panel {
+  display: block;
+}
+
+.bitrix-chat-header {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, var(--color-navy-950), var(--color-navy-700));
+  color: var(--color-text-inverse);
+}
+
+.bitrix-chat-header strong,
+.bitrix-chat-header span {
+  display: block;
+}
+
+.bitrix-chat-header span {
+  margin-top: var(--space-1);
+  color: rgb(255 255 255 / 0.72);
+  font-size: var(--font-size-1);
+}
+
+.bitrix-chat-header-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.bitrix-chat-header-actions button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: rgb(255 255 255 / 0.14);
+  color: var(--color-text-inverse);
+}
+
+.bitrix-chat-search {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.bitrix-chat-search input {
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.bitrix-chat-body {
+  display: grid;
+  height: calc(100% - 121px);
+  grid-template-columns: 245px minmax(0, 1fr);
+}
+
+.bitrix-chat-contacts {
+  overflow-y: auto;
+  padding: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.bitrix-contact {
+  position: relative;
+  display: grid;
+  width: 100%;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+}
+
+.bitrix-contact:hover,
+.bitrix-contact.active {
+  background: var(--color-teal-100);
+}
+
+.contact-avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--color-teal-700);
+  color: var(--color-text-inverse);
+}
+
+.contact-avatar img,
+.contact-avatar > span {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.contact-info {
+  display: grid;
+  min-width: 0;
+}
+
+.contact-info b,
+.contact-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contact-info small {
+  color: var(--color-text-muted);
+}
+
+.bitrix-chat-conversation {
+  display: grid;
+  min-width: 0;
+  grid-template-rows: minmax(0, 1fr) auto;
+  background: var(--color-canvas);
+}
+
+.bitrix-chat-messages {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: var(--space-2);
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.bitrix-chat-messages .msg {
+  align-self: flex-start;
+  max-width: 78%;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.bitrix-chat-messages .msg.mine {
+  align-self: flex-end;
+  border-color: rgb(31 122 79 / 0.2);
+  background: var(--color-success-soft);
+}
+
+.msg-author {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.msg-author img,
+.msg-author > span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--color-teal-700);
+  color: var(--color-text-inverse);
+}
+
+.bitrix-chat-messages .msg p,
+.bitrix-chat-messages .msg small {
+  margin: var(--space-1) 0 0;
+}
+
+.bitrix-chat-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.bitrix-chat-form input {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+@media (min-width: 768px) {
+  .ui-main {
+    padding-right: 58px;
+  }
+}
+
+@media (max-width: 767px) {
+  .bitrix-chat-rail {
+    top: auto;
+    left: 0;
+    width: auto;
+    height: 64px;
+    flex-direction: row;
+    padding: var(--space-2) var(--space-3);
+    overflow-x: auto;
+  }
+
+  .rail-contacts {
+    flex-direction: row;
+    overflow: visible;
+  }
+
+  .bitrix-chat-panel {
+    right: var(--space-2);
+    bottom: 72px;
+    left: var(--space-2);
+    width: auto;
+    height: min(72vh, 620px);
+  }
+
+  .bitrix-chat-body {
+    grid-template-columns: 1fr;
+  }
+
+  .bitrix-chat-contacts {
+    display: none;
+  }
+}

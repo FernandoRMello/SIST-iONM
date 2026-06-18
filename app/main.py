@@ -38,7 +38,12 @@ for folder in [DATA_DIR, PDF_DIR, XML_DIR, UPLOAD_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title=APP_NAME)
-app.add_middleware(SessionMiddleware, secret_key="sist-ionm-local-session-key")
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SIST_IONM_SESSION_SECRET", "sist-ionm-local-session-key"),
+    same_site="lax",
+    https_only=os.getenv("SIST_IONM_ENVIRONMENT") == "production",
+)
 app.mount("/assets", StaticFiles(directory=SHARED_STATIC_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -56,6 +61,19 @@ async def response_cache_policy(request: Request, call_next):
         response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     elif "text/html" in content_type:
         response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; script-src 'self'; style-src 'self'; "
+        "img-src 'self' data:; connect-src 'self' ws: wss:; "
+        "object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
+    )
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = (
+            "max-age=31536000; includeSubDomains"
+        )
     return response
 
 class ChatConnectionManager:

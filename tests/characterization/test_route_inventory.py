@@ -2,7 +2,6 @@ from fastapi.routing import APIRoute
 
 from app.main import app
 
-
 EXPECTED_HTTP_ROUTES = {
     ("GET", "/"),
     ("GET", "/admin/permissions"),

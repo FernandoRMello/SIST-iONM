@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 EXPECTED_TEMPLATES = {
     "base.html",
     "bi_gerencial.html",

@@ -78,3 +78,12 @@
 .ui-scroll-locked {
   overflow: hidden;
 }
+
+.money-sensitive {
+  transition: filter var(--duration-base) var(--ease-standard);
+}
+
+body.hide-money .money-sensitive {
+  filter: blur(8px);
+  user-select: none;
+}

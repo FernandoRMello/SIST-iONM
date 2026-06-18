@@ -10,7 +10,6 @@ from fastapi.testclient import TestClient
 
 import app.main as legacy
 
-
 TEST_ADMIN_USERNAME = "fernando.mello"
 TEST_ADMIN_PASSWORD = "TempAdmin!123"
 TEST_SELLER_USERNAME = "qa.seller"

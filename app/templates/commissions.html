@@ -1,19 +1,29 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import empty_state, page_header, stat_card, status_badge %}
+
 {% block title %}Comissões{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/finance.css">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/tables.js" defer></script>{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>Comissões por vendedor</h2>
-  <table>
-    <thead><tr><th>Vendedor</th><th>Pedido</th><th>Cliente</th><th>Produto</th><th>Fornecedor</th><th>Venda</th><th>Overprice</th><th>%</th><th>Comissão</th><th>Status</th></tr></thead>
-    <tbody>
-    {% for r in rows %}
-      <tr>
-        <td>{{ r.seller_name }}</td><td>{{ r.order_number or '' }}</td><td>{{ r.client_name }}</td><td>{{ r.product_name }}</td>
-        <td>{{ money(r.supplier_total) }}</td><td>{{ money(r.sale_total) }}</td><td>{{ money(r.overprice) }}</td><td>{{ r.seller_commission_rate }}%</td><td>{{ money(r.commission) }}</td><td><span class="pill">{{ r.commission_status }}</span></td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+{% set totals = namespace(commission=0, overprice=0) %}
+{% for row in rows %}{% set totals.commission = totals.commission + (row.commission or 0) %}{% set totals.overprice = totals.overprice + (row.overprice or 0) %}{% endfor %}
+<div class="ui-finance-stack">
+  {{ page_header('Comissões por vendedor', 'Detalhamento de margem e comissão por produto vendido.', 'Financeiro') }}
+
+  <div class="ui-finance-summary ui-finance-summary--two">
+    {{ stat_card('Comissões calculadas', money(totals.commission), 'sellers', 'info', rows|length ~ ' item(ns)', sensitive=true) }}
+    {{ stat_card('Overprice relacionado', money(totals.overprice), 'finance', 'success', sensitive=true) }}
+  </div>
+
+  <section class="ui-card ui-finance-section">
+    <header class="ui-finance-table-header">
+      <div><h2>Comissões por vendedor</h2><p>Use a busca para filtrar vendedor, cliente, pedido ou status.</p></div>
+      <label class="ui-field ui-finance-search" for="commission-search"><span class="ui-field__label">Filtrar comissões</span><input class="ui-field__control" id="commission-search" type="search" data-table-search="commissions-table" autocomplete="off"></label>
+    </header>
+    {% if rows %}
+    <div class="ui-table-wrapper"><table class="ui-table" id="commissions-table" data-table><thead><tr><th>Vendedor</th><th>Pedido</th><th>Cliente</th><th>Produto</th><th>Fornecedor</th><th>Venda</th><th>Overprice</th><th>%</th><th>Comissão</th><th>Status</th></tr></thead><tbody>{% for row in rows %}<tr><td>{{ row.seller_name }}</td><td>{{ row.order_number or '-' }}</td><td>{{ row.client_name }}</td><td>{{ row.product_name }}</td><td class="money-sensitive">{{ money(row.supplier_total) }}</td><td class="money-sensitive">{{ money(row.sale_total) }}</td><td class="money-sensitive">{{ money(row.overprice) }}</td><td>{{ row.seller_commission_rate }}%</td><td class="money-sensitive">{{ money(row.commission) }}</td><td><span class="ui-visually-hidden">Status: </span>{{ status_badge(row.commission_status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div><p data-table-no-results="commissions-table" hidden></p>
+    {% else %}{{ empty_state('Nenhuma comissão', 'As comissões serão exibidas após a criação dos pedidos.', 'sellers') }}{% endif %}
+  </section>
 </div>
 {% endblock %}

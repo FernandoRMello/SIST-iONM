@@ -1783,39 +1783,47 @@ def commissions(request: Request):
 # ---------------- Fiscal / Financeiro ----------------
 
 @app.get("/finance", response_class=HTMLResponse)
-def finance(request: Request):
+def finance(request: Request, segment: str = "receivables"):
     if not require_login(request):
         return redirect_login()
     if current_user(request).get("role") not in ["admin", "financeiro"]:
         return PlainTextResponse("Sem permissão", status_code=403)
 
-    receivables = q("""
-        SELECT r.*, c.name AS client_name, o.order_number
-        FROM receivables r
-        LEFT JOIN clients c ON c.id=r.client_id
-        LEFT JOIN orders o ON o.id=r.order_id
-        ORDER BY r.id DESC
-    """)
-    payables = q("""
-        SELECT p.*, s.name AS seller_name, sp.name AS supplier_name, o.order_number
-        FROM payables p
-        LEFT JOIN sellers s ON s.id=p.seller_id
-        LEFT JOIN suppliers sp ON sp.id=p.supplier_id
-        LEFT JOIN orders o ON o.id=p.order_id
-        ORDER BY p.id DESC
-    """)
-    costs = q("""
-        SELECT c.*, o.order_number
-        FROM costs c
-        LEFT JOIN orders o ON o.id=c.order_id
-        ORDER BY c.id DESC
-    """)
-    orders_list = q("SELECT * FROM orders ORDER BY id DESC")
+    if segment not in {"receivables", "payables", "costs"}:
+        segment = "receivables"
+
+    rows = []
+    if segment == "receivables":
+        rows = q("""
+            SELECT r.*, c.name AS client_name, o.order_number
+            FROM receivables r
+            LEFT JOIN clients c ON c.id=r.client_id
+            LEFT JOIN orders o ON o.id=r.order_id
+            ORDER BY r.id DESC
+        """)
+    elif segment == "payables":
+        rows = q("""
+            SELECT p.*, s.name AS seller_name, sp.name AS supplier_name, o.order_number
+            FROM payables p
+            LEFT JOIN sellers s ON s.id=p.seller_id
+            LEFT JOIN suppliers sp ON sp.id=p.supplier_id
+            LEFT JOIN orders o ON o.id=p.order_id
+            ORDER BY p.id DESC
+        """)
+    else:
+        rows = q("""
+            SELECT c.*, o.order_number
+            FROM costs c
+            LEFT JOIN orders o ON o.id=c.order_id
+            ORDER BY c.id DESC
+        """)
+
+    orders_list = q("SELECT * FROM orders ORDER BY id DESC") if segment == "costs" else []
 
     return render(request, "finance.html", {
-        "receivables": receivables,
-        "payables": payables,
-        "costs": costs,
+        "segment": segment,
+        "rows": rows,
+        "total": sum(float(row.get("amount") or 0) for row in rows),
         "orders": orders_list,
         "cost_categories": COST_CATEGORIES,
         "cost_centers": COST_CENTERS,
@@ -1839,7 +1847,7 @@ async def add_cost(request: Request):
         form.get("vendor"), form.get("document"), form.get("billable") or "Não",
         form.get("notes")
     ))
-    return RedirectResponse("/finance", status_code=303)
+    return RedirectResponse("/finance?segment=costs", status_code=303)
 
 
 # ---------------- Relatórios ----------------

@@ -1,26 +1,63 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import empty_state, page_header, stat_card, status_badge %}
+
 {% block title %}Fiscal / Financeiro{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/finance.css">{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>Novo custo</h2>
-  <form class="inline-form" method="post" action="/finance/costs/add">
-    <select name="order_id"><option value="">Sem pedido</option>{% for o in orders %}<option value="{{ o.id }}">{{ o.order_number }}</option>{% endfor %}</select>
-    <input name="description" placeholder="Descrição">
-    <select name="category">{% for c in cost_categories %}<option>{{ c }}</option>{% endfor %}</select>
-    <select name="cost_center">{% for c in cost_centers %}<option>{{ c }}</option>{% endfor %}</select>
-    <input name="amount" placeholder="Valor">
-    <input name="date" placeholder="Data">
-    <input name="vendor" placeholder="Fornecedor/Vendedor">
-    <input name="document" placeholder="Documento">
-    <select name="billable"><option>Não</option><option>Sim</option></select>
-    <input name="notes" placeholder="Obs.">
-    <button class="btn">Adicionar custo</button>
-  </form>
+<div class="ui-finance-stack">
+  {{ page_header(
+    'Fiscal / Financeiro',
+    'Acompanhe recebimentos, pagamentos e custos operacionais.',
+    'Financeiro'
+  ) }}
+
+  <nav class="ui-finance-tabs" aria-label="Segmentos financeiros">
+    <a class="ui-button {% if segment == 'receivables' %}ui-button--primary{% else %}ui-button--secondary{% endif %}" href="/finance?segment=receivables" {% if segment == 'receivables' %}aria-current="page"{% endif %}>Contas a receber</a>
+    <a class="ui-button {% if segment == 'payables' %}ui-button--primary{% else %}ui-button--secondary{% endif %}" href="/finance?segment=payables" {% if segment == 'payables' %}aria-current="page"{% endif %}>Contas a pagar</a>
+    <a class="ui-button {% if segment == 'costs' %}ui-button--primary{% else %}ui-button--secondary{% endif %}" href="/finance?segment=costs" {% if segment == 'costs' %}aria-current="page"{% endif %}>Custos</a>
+  </nav>
+
+  {% if segment == 'receivables' %}
+  <section class="ui-finance-panel" data-finance-panel="receivables">
+    <div class="ui-finance-summary">{{ stat_card('Total a receber', money(total), 'finance', 'info', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Contas a receber</h2><p>Valores emitidos para clientes.</p></header>
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Descrição</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for receivable in rows %}<tr><td>{{ receivable.order_number or '-' }}</td><td>{{ receivable.client_name or '-' }}</td><td>{{ receivable.description }}</td><td>{{ receivable.due_date or '-' }}</td><td class="money-sensitive">{{ money(receivable.amount) }}</td><td>{{ status_badge(receivable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a receber', 'Os recebíveis gerados aparecerão nesta lista.', 'finance') }}{% endif %}
+    </div>
+  </section>
+  {% elif segment == 'payables' %}
+  <section class="ui-finance-panel" data-finance-panel="payables">
+    <div class="ui-finance-summary">{{ stat_card('Total a pagar', money(total), 'money', 'warning', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Contas a pagar</h2><p>Obrigações com vendedores e fornecedores.</p></header>
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Vendedor / fornecedor</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for payable in rows %}<tr><td>{{ payable.order_number or '-' }}</td><td>{{ payable.description }}</td><td>{{ payable.seller_name or payable.supplier_name or '-' }}</td><td>{{ payable.due_date or '-' }}</td><td class="money-sensitive">{{ money(payable.amount) }}</td><td>{{ status_badge(payable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a pagar', 'As obrigações geradas aparecerão nesta lista.', 'money') }}{% endif %}
+    </div>
+  </section>
+  {% else %}
+  <section class="ui-finance-panel" data-finance-panel="costs">
+    <div class="ui-finance-summary">{{ stat_card('Total de custos', money(total), 'purchases', 'warning', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Novo custo</h2><p>Registre uma despesa operacional vinculada ou não a um pedido.</p></header>
+      <form class="ui-finance-form" method="post" action="/finance/costs/add">
+        <label class="ui-field" for="cost-order"><span class="ui-field__label">Pedido</span><select class="ui-field__control" id="cost-order" name="order_id"><option value="">Sem pedido</option>{% for order in orders %}<option value="{{ order.id }}">{{ order.order_number }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="cost-description"><span class="ui-field__label">Descrição</span><input class="ui-field__control" id="cost-description" name="description" required></label>
+        <label class="ui-field" for="cost-category"><span class="ui-field__label">Categoria</span><select class="ui-field__control" id="cost-category" name="category">{% for category in cost_categories %}<option>{{ category }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="cost-center"><span class="ui-field__label">Centro de custo</span><select class="ui-field__control" id="cost-center" name="cost_center">{% for center in cost_centers %}<option>{{ center }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="cost-amount"><span class="ui-field__label">Valor</span><input class="ui-field__control" id="cost-amount" name="amount" inputmode="decimal" required></label>
+        <label class="ui-field" for="cost-date"><span class="ui-field__label">Data</span><input class="ui-field__control" id="cost-date" name="date" type="date"></label>
+        <label class="ui-field" for="cost-vendor"><span class="ui-field__label">Fornecedor / vendedor</span><input class="ui-field__control" id="cost-vendor" name="vendor"></label>
+        <label class="ui-field" for="cost-document"><span class="ui-field__label">Documento</span><input class="ui-field__control" id="cost-document" name="document"></label>
+        <label class="ui-field" for="cost-billable"><span class="ui-field__label">Repassável</span><select class="ui-field__control" id="cost-billable" name="billable"><option>Não</option><option>Sim</option></select></label>
+        <label class="ui-field ui-finance-form__full" for="cost-notes"><span class="ui-field__label">Observações</span><textarea class="ui-field__control" id="cost-notes" name="notes" rows="3"></textarea></label>
+        <div class="ui-finance-form__actions"><button class="ui-button ui-button--primary" type="submit">Adicionar custo</button></div>
+      </form>
+    </div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Custos</h2><p>Despesas operacionais registradas.</p></header>
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Fornecedor</th><th>Valor</th><th>Data</th></tr></thead><tbody>{% for cost in rows %}<tr><td>{{ cost.order_number or '-' }}</td><td>{{ cost.description }}</td><td>{{ cost.category }}</td><td>{{ cost.cost_center }}</td><td>{{ cost.vendor or '-' }}</td><td class="money-sensitive">{{ money(cost.amount) }}</td><td>{{ cost.date }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhum custo', 'Adicione o primeiro custo usando o formulário acima.', 'purchases') }}{% endif %}
+    </div>
+  </section>
+  {% endif %}
 </div>
-<div class="grid2">
-  <div class="card"><h2>Contas a receber</h2><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Descrição</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for r in receivables %}<tr><td>{{ r.order_number }}</td><td>{{ r.client_name }}</td><td>{{ r.description }}</td><td>{{ money(r.amount) }}</td><td>{{ r.status }}</td></tr>{% endfor %}</tbody></table></div>
-  <div class="card"><h2>Contas a pagar</h2><table><thead><tr><th>Pedido</th><th>Descrição</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for p in payables %}<tr><td>{{ p.order_number }}</td><td>{{ p.description }}</td><td>{{ money(p.amount) }}</td><td>{{ p.status }}</td></tr>{% endfor %}</tbody></table></div>
-</div>
-<div class="card"><h2>Custos</h2><table><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Valor</th><th>Data</th></tr></thead><tbody>{% for c in costs %}<tr><td>{{ c.order_number }}</td><td>{{ c.description }}</td><td>{{ c.category }}</td><td>{{ c.cost_center }}</td><td>{{ money(c.amount) }}</td><td>{{ c.date }}</td></tr>{% endfor %}</tbody></table></div>
 {% endblock %}

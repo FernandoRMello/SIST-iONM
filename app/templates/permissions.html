@@ -1,3 +1,84 @@
-{% extends "base.html" %}{% block title %}Permissões{% endblock %}{% block content %}
-<div class="card"><h2>Administração de perfis</h2><p class="muted">Gerencie o que cada perfil pode visualizar, criar, editar ou excluir.</p><form method="post" action="/admin/permissions/save"><table><thead><tr><th>Perfil</th><th>Módulo</th><th>Ver</th><th>Criar</th><th>Editar</th><th>Excluir</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ r.role }}</td><td>{{ r.module }}</td><td><input type="checkbox" name="view_{{ r.id }}" {% if r.can_view=='Sim' %}checked{% endif %}></td><td><input type="checkbox" name="create_{{ r.id }}" {% if r.can_create=='Sim' %}checked{% endif %}></td><td><input type="checkbox" name="edit_{{ r.id }}" {% if r.can_edit=='Sim' %}checked{% endif %}></td><td><input type="checkbox" name="delete_{{ r.id }}" {% if r.can_delete=='Sim' %}checked{% endif %}></td></tr>{% endfor %}</tbody></table><button class="btn">Salvar permissões</button></form></div>
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
+{% block title %}Permissões{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css">
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/assets/js/forms.js" defer></script>
+<script src="/assets/js/tables.js" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack">
+  {{ page_header(
+    'Permissões',
+    'Controle o acesso de cada perfil aos módulos do sistema.',
+    'Administração'
+  ) }}
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>Administração de perfis</h2>
+        <p>Defina permissões de visualização, criação, edição e exclusão.</p>
+      </div>
+    </header>
+
+    <label class="ui-field ui-admin-search" for="permissions-search">
+      <span class="ui-field__label">Buscar perfil ou módulo</span>
+      <input
+        class="ui-field__control"
+        id="permissions-search"
+        type="search"
+        data-table-search="permissions-table"
+        autocomplete="off"
+      >
+    </label>
+
+    <form
+      method="post"
+      action="/admin/permissions/save"
+      data-confirm="Salvar estas alterações de acesso?"
+    >
+      <div class="ui-table-wrapper">
+        <table class="ui-table ui-permission-matrix" id="permissions-table" data-table>
+          <thead>
+            <tr><th>Perfil</th><th>Módulo</th><th>Ver</th><th>Criar</th><th>Editar</th><th>Excluir</th></tr>
+          </thead>
+          <tbody>
+            {% for permission in rows %}
+            <tr>
+              <td>{{ permission.role }}</td>
+              <td>{{ permission.module }}</td>
+              {% for action, value in [
+                ('view', permission.can_view),
+                ('create', permission.can_create),
+                ('edit', permission.can_edit),
+                ('delete', permission.can_delete)
+              ] %}
+              <td>
+                <input
+                  type="checkbox"
+                  name="{{ action }}_{{ permission.id }}"
+                  aria-label="{{ action }} em {{ permission.module }} para {{ permission.role }}"
+                  {% if value == 'Sim' %}checked{% endif %}
+                >
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p data-table-no-results="permissions-table" hidden></p>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar permissões</button>
+      </div>
+    </form>
+  </section>
+</div>
 {% endblock %}

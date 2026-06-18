@@ -1,119 +1,265 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import icon, page_header %}
+
 {% block title %}Configurações{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css">
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/assets/js/forms.js" defer></script>
+<script src="/assets/js/tables.js" defer></script>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>Empresa e impressão no servidor</h2>
-  <form class="form-grid" method="post" action="/settings/save">
-    <label>Empresa<input name="company_name" value="{{ cfg.company_name }}"></label>
-    <label>CNPJ<input name="company_document" value="{{ cfg.company_document }}"></label>
-    <label>E-mail<input name="company_email" value="{{ cfg.company_email }}"></label>
-    <label>Telefone<input name="company_phone" value="{{ cfg.company_phone }}"></label>
-    <label>Endereço<input name="company_address" value="{{ cfg.company_address }}"></label>
-    <label>Impressora servidor<input name="server_printer" value="{{ cfg.server_printer }}"></label>
-    <label>Caminho SumatraPDF<input name="sumatra_path" value="{{ cfg.sumatra_path }}"></label>
-    <label>Habilitar impressão servidor<select name="allow_server_print"><option {% if cfg.allow_server_print=='Não' %}selected{% endif %}>Não</option><option {% if cfg.allow_server_print=='Sim' %}selected{% endif %}>Sim</option></select></label>
-    <div class="form-actions"><button class="btn">Salvar</button></div>
-  </form>
-</div>
-<div class="card">
-  <h2>{% if edit_user %}Editar usuário{% else %}Criar usuário{% endif %}</h2>
+<div class="ui-admin-stack">
+  {{ page_header(
+    'Configurações',
+    'Dados institucionais, usuários, e-mail e manutenção do sistema.',
+    'Administração'
+  ) }}
 
-  {% if edit_user %}
-  <form class="inline-form" method="post" action="/settings/users/update/{{ edit_user.id }}">
-    <input name="username" placeholder="Usuário" value="{{ edit_user.username }}">
-    <input name="email" placeholder="E-mail do usuário" value="{{ edit_user.email or '' }}">
-    <input name="smtp_email" placeholder="E-mail SMTP individual" value="{{ edit_user.smtp_email or '' }}">
-    <input name="smtp_host" placeholder="SMTP host" value="{{ edit_user.smtp_host or '' }}">
-    <input name="smtp_port" placeholder="SMTP porta" value="{{ edit_user.smtp_port or '' }}">
-    <input name="email_signature" placeholder="Assinatura individual" value="{{ edit_user.email_signature or '' }}">
-    <input name="password" placeholder="Nova senha em branco mantém atual">
-    <select name="role">
-      <option {% if edit_user.role=='vendedor' %}selected{% endif %}>vendedor</option>
-      <option {% if edit_user.role=='admin' %}selected{% endif %}>admin</option>
-      <option {% if edit_user.role=='financeiro' %}selected{% endif %}>financeiro</option>
-    </select>
-    <select name="seller_id">
-      <option value="">Sem vendedor</option>
-      {% for s in sellers %}
-      <option value="{{ s.id }}" {% if edit_user.seller_id==s.id %}selected{% endif %}>{{ s.name }}</option>
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>Empresa e impressão no servidor</h2>
+        <p>Informações usadas em documentos e integrações locais.</p>
+      </div>
+    </header>
+
+    <form class="ui-admin-form" method="post" action="/settings/save">
+      {% for name, label, value in [
+        ('company_name', 'Empresa', cfg.company_name),
+        ('company_document', 'CNPJ', cfg.company_document),
+        ('company_email', 'E-mail', cfg.company_email),
+        ('company_phone', 'Telefone', cfg.company_phone),
+        ('company_address', 'Endereço', cfg.company_address),
+        ('server_printer', 'Impressora do servidor', cfg.server_printer),
+        ('sumatra_path', 'Caminho do SumatraPDF', cfg.sumatra_path)
+      ] %}
+      <label class="ui-field" for="{{ name }}">
+        <span class="ui-field__label">{{ label }}</span>
+        <input
+          class="ui-field__control"
+          id="{{ name }}"
+          name="{{ name }}"
+          value="{{ value or '' }}"
+          {% if name == 'company_email' %}type="email"{% endif %}
+        >
+      </label>
       {% endfor %}
-    </select>
-    <select name="active">
-      <option {% if edit_user.active=='Sim' %}selected{% endif %}>Sim</option>
-      <option {% if edit_user.active=='Não' %}selected{% endif %}>Não</option>
-    </select>
-    <button class="btn">Salvar alteração</button>
-    <a class="btn ghost" href="/settings">Cancelar</a>
-  </form>
-  {% else %}
-  <form class="inline-form" method="post" action="/settings/users/create">
-    <input name="username" placeholder="Usuário">
-    <input name="email" placeholder="E-mail">
-    <input name="password" placeholder="Senha">
-    <select name="role"><option>vendedor</option><option>admin</option><option>financeiro</option></select>
-    <select name="seller_id"><option value="">Sem vendedor</option>{% for s in sellers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select>
-    <select name="active"><option>Sim</option><option>Não</option></select>
-    <button class="btn">Criar usuário</button>
-  </form>
-  {% endif %}
 
-  <table>
-    <thead>
-      <tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vendedor</th><th>Ativo</th><th>Ações</th></tr>
-    </thead>
-    <tbody>
-      {% for u in users %}
-      <tr>
-        <td>{{ u.username }}</td>
-        <td>{{ u.email or "-" }}</td>
-        <td>{{ u.role }}</td>
-        <td>{{ u.seller_name }}</td>
-        <td>{{ u.active }}</td>
-        <td>
-          <a href="/settings/users/edit/{{ u.id }}">Editar</a>
-          {% if u.username != 'fernando.mello' %}
-           · <a href="/settings/users/toggle/{{ u.id }}">{% if u.active=='Sim' %}Desativar{% else %}Ativar{% endif %}</a>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+      <label class="ui-field" for="allow_server_print">
+        <span class="ui-field__label">Habilitar impressão no servidor</span>
+        <select class="ui-field__control" id="allow_server_print" name="allow_server_print">
+          <option {% if cfg.allow_server_print == 'Não' %}selected{% endif %}>Não</option>
+          <option {% if cfg.allow_server_print == 'Sim' %}selected{% endif %}>Sim</option>
+        </select>
+      </label>
 
-<div class="card">
-  <h2>E-mails por perfil</h2>
-  <p class="muted">Configure e-mail remetente, SMTP e assinatura padrão para disparo/envio de orçamento por perfil.</p>
-  <form method="post" action="/settings/role-email/save">
-    <table>
-      <thead>
-        <tr><th>Perfil</th><th>E-mail remetente</th><th>SMTP Host</th><th>Porta</th><th>Usuário SMTP</th><th>Senha SMTP</th><th>Assinatura</th></tr>
-      </thead>
-      <tbody>
-        {% for r in role_emails %}
-        <tr>
-          <td>{{ r.role }}</td>
-          <td><input name="email_from_{{ r.id }}" value="{{ r.email_from or '' }}"></td>
-          <td><input name="smtp_host_{{ r.id }}" value="{{ r.smtp_host or '' }}"></td>
-          <td><input name="smtp_port_{{ r.id }}" value="{{ r.smtp_port or '' }}"></td>
-          <td><input name="smtp_user_{{ r.id }}" value="{{ r.smtp_user or '' }}"></td>
-          <td><input name="smtp_password_{{ r.id }}" type="password" value="{{ r.smtp_password or '' }}"></td>
-          <td><input name="signature_{{ r.id }}" value="{{ r.signature or '' }}"></td>
-        </tr>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar empresa</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>Usuários e acesso</h2>
+        <p>Gerencie credenciais, perfil funcional e vínculo comercial.</p>
+      </div>
+    </header>
+
+    {% if edit_user %}
+    <h3>Editar usuário</h3>
+    <form
+      class="ui-admin-form ui-admin-form--wide"
+      method="post"
+      action="/settings/users/update/{{ edit_user.id }}"
+    >
+      <label class="ui-field" for="user-username">
+        <span class="ui-field__label">Usuário</span>
+        <input class="ui-field__control" id="user-username" name="username" value="{{ edit_user.username }}" required autocomplete="username">
+      </label>
+      <label class="ui-field" for="user-email">
+        <span class="ui-field__label">E-mail do usuário</span>
+        <input class="ui-field__control" id="user-email" name="email" type="email" value="{{ edit_user.email or '' }}" autocomplete="email">
+      </label>
+      <label class="ui-field" for="user-password">
+        <span class="ui-field__label">Nova senha</span>
+        <input class="ui-field__control" id="user-password" name="password" type="password" autocomplete="new-password" placeholder="Em branco mantém a senha atual">
+      </label>
+      <label class="ui-field" for="user-role">
+        <span class="ui-field__label">Perfil</span>
+        <select class="ui-field__control" id="user-role" name="role">
+          {% for role in ['vendedor', 'admin', 'financeiro'] %}
+          <option {% if edit_user.role == role %}selected{% endif %}>{{ role }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field" for="user-seller">
+        <span class="ui-field__label">Vendedor vinculado</span>
+        <select class="ui-field__control" id="user-seller" name="seller_id">
+          <option value="">Sem vendedor</option>
+          {% for seller in sellers %}
+          <option value="{{ seller.id }}" {% if edit_user.seller_id == seller.id %}selected{% endif %}>{{ seller.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field" for="user-active">
+        <span class="ui-field__label">Status</span>
+        <select class="ui-field__control" id="user-active" name="active">
+          <option {% if edit_user.active == 'Sim' %}selected{% endif %}>Sim</option>
+          <option {% if edit_user.active == 'Não' %}selected{% endif %}>Não</option>
+        </select>
+      </label>
+
+      <div class="ui-admin-form__full">
+        <button
+          class="ui-button ui-button--secondary"
+          type="button"
+          data-disclosure
+          aria-controls="individual-smtp"
+          aria-expanded="false"
+        >Configuração SMTP individual</button>
+      </div>
+      <div class="ui-admin-form ui-admin-form--wide ui-admin-form__full ui-disclosure-panel" id="individual-smtp" hidden>
+        {% for name, label, value in [
+          ('smtp_email', 'E-mail SMTP individual', edit_user.smtp_email),
+          ('smtp_host', 'Servidor SMTP', edit_user.smtp_host),
+          ('smtp_port', 'Porta SMTP', edit_user.smtp_port),
+          ('email_signature', 'Assinatura individual', edit_user.email_signature)
+        ] %}
+        <label class="ui-field" for="user-{{ name }}">
+          <span class="ui-field__label">{{ label }}</span>
+          <input class="ui-field__control" id="user-{{ name }}" name="{{ name }}" value="{{ value or '' }}">
+        </label>
         {% endfor %}
-      </tbody>
-    </table>
-    <button class="btn">Salvar e-mails por perfil</button>
-  </form>
-</div>
+      </div>
 
-<div class="card">
-  <h2>Backup</h2>
-  <a class="btn" href="/backup/export-db">Exportar DB SQLite</a>
-  <form class="inline-form" method="post" action="/backup/import-db" enctype="multipart/form-data">
-    <input type="file" name="file" accept=".db">
-    <button class="btn ghost">Importar DB</button>
-  </form>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar alteração</button>
+        <a class="ui-button ui-button--secondary" href="/settings">Cancelar</a>
+      </div>
+    </form>
+    {% else %}
+    <h3>Criar usuário</h3>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/settings/users/create">
+      <label class="ui-field" for="new-username">
+        <span class="ui-field__label">Usuário</span>
+        <input class="ui-field__control" id="new-username" name="username" required autocomplete="username">
+      </label>
+      <label class="ui-field" for="new-email">
+        <span class="ui-field__label">E-mail</span>
+        <input class="ui-field__control" id="new-email" name="email" type="email" autocomplete="email">
+      </label>
+      <label class="ui-field" for="new-password">
+        <span class="ui-field__label">Senha inicial</span>
+        <input class="ui-field__control" id="new-password" name="password" type="password" required autocomplete="new-password">
+      </label>
+      <label class="ui-field" for="new-role">
+        <span class="ui-field__label">Perfil</span>
+        <select class="ui-field__control" id="new-role" name="role">
+          <option>vendedor</option><option>admin</option><option>financeiro</option>
+        </select>
+      </label>
+      <label class="ui-field" for="new-seller">
+        <span class="ui-field__label">Vendedor vinculado</span>
+        <select class="ui-field__control" id="new-seller" name="seller_id">
+          <option value="">Sem vendedor</option>
+          {% for seller in sellers %}<option value="{{ seller.id }}">{{ seller.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="ui-field" for="new-active">
+        <span class="ui-field__label">Status</span>
+        <select class="ui-field__control" id="new-active" name="active"><option>Sim</option><option>Não</option></select>
+      </label>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Criar usuário</button>
+      </div>
+    </form>
+    {% endif %}
+
+    <label class="ui-field ui-admin-search" for="users-search">
+      <span class="ui-field__label">Buscar usuários</span>
+      <input class="ui-field__control" id="users-search" type="search" data-table-search="users-table" autocomplete="off">
+    </label>
+    <div class="ui-table-wrapper">
+      <table class="ui-table" id="users-table" data-table>
+        <thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vendedor</th><th>Ativo</th><th>Ações</th></tr></thead>
+        <tbody>
+          {% for account in users %}
+          <tr>
+            <td>{{ account.username }}</td>
+            <td>{{ account.email or '-' }}</td>
+            <td>{{ account.role }}</td>
+            <td>{{ account.seller_name or '-' }}</td>
+            <td>{{ account.active }}</td>
+            <td><div class="ui-row-actions">
+              <a class="ui-button ui-button--ghost" href="/settings/users/edit/{{ account.id }}" aria-label="Editar {{ account.username }}">Editar</a>
+              {% if account.username != 'fernando.mello' %}
+              <a class="ui-button ui-button--secondary" href="/settings/users/toggle/{{ account.id }}" data-confirm="Alterar o acesso deste usuário?">{% if account.active == 'Sim' %}Desativar{% else %}Ativar{% endif %}</a>
+              {% endif %}
+            </div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p data-table-no-results="users-table" hidden></p>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>E-mails por perfil</h2>
+        <p>A senha armazenada nunca é exibida; deixe o campo vazio para mantê-la.</p>
+      </div>
+    </header>
+    <form method="post" action="/settings/role-email/save">
+      <div class="ui-table-wrapper">
+        <table class="ui-table">
+          <thead><tr><th>Perfil</th><th>Remetente</th><th>Servidor</th><th>Porta</th><th>Usuário SMTP</th><th>Nova senha</th><th>Assinatura</th></tr></thead>
+          <tbody>
+            {% for role_email in role_emails %}
+            <tr>
+              <td>{{ role_email.role }}</td>
+              <td><input class="ui-field__control" aria-label="E-mail remetente de {{ role_email.role }}" name="email_from_{{ role_email.id }}" type="email" value="{{ role_email.email_from or '' }}"></td>
+              <td><input class="ui-field__control" aria-label="Servidor SMTP de {{ role_email.role }}" name="smtp_host_{{ role_email.id }}" value="{{ role_email.smtp_host or '' }}"></td>
+              <td><input class="ui-field__control" aria-label="Porta SMTP de {{ role_email.role }}" name="smtp_port_{{ role_email.id }}" inputmode="numeric" value="{{ role_email.smtp_port or '' }}"></td>
+              <td><input class="ui-field__control" aria-label="Usuário SMTP de {{ role_email.role }}" name="smtp_user_{{ role_email.id }}" value="{{ role_email.smtp_user or '' }}"></td>
+              <td><input class="ui-field__control" aria-label="Nova senha SMTP de {{ role_email.role }}" name="smtp_password_{{ role_email.id }}" type="password" autocomplete="new-password" placeholder="Manter atual"></td>
+              <td><input class="ui-field__control" aria-label="Assinatura de {{ role_email.role }}" name="signature_{{ role_email.id }}" value="{{ role_email.signature or '' }}"></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar e-mails por perfil</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>Backup e restauração</h2>
+        <p>Exporte uma cópia ou restaure um banco SQLite autorizado.</p>
+      </div>
+    </header>
+    <div class="ui-backup-actions">
+      <a class="ui-button ui-button--secondary" href="/backup/export-db">{{ icon('arrow-right', 16) }} Exportar banco</a>
+      <form method="post" action="/backup/import-db" enctype="multipart/form-data" data-confirm="Restaurar este banco substituirá os dados atuais. Continuar?">
+        <label class="ui-field" for="backup-file">
+          <span class="ui-field__label">Arquivo SQLite</span>
+          <input class="ui-field__control" id="backup-file" type="file" name="file" accept=".db" required>
+        </label>
+        <button class="ui-button ui-button--danger" type="submit">Importar e restaurar</button>
+      </form>
+    </div>
+  </section>
 </div>
 {% endblock %}

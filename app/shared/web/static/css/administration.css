@@ -1,0 +1,123 @@
+.ui-admin-stack {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.ui-admin-section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ui-admin-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ui-admin-section__header h2,
+.ui-admin-section__header p {
+  margin: 0;
+}
+
+.ui-admin-section__header p {
+  margin-top: var(--space-1);
+  color: var(--color-text-muted);
+}
+
+.ui-admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.ui-admin-form--wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ui-admin-form__full,
+.ui-admin-form__actions {
+  grid-column: 1 / -1;
+}
+
+.ui-admin-form__actions,
+.ui-admin-toolbar,
+.ui-row-actions,
+.ui-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.ui-admin-toolbar {
+  justify-content: space-between;
+}
+
+.ui-admin-search {
+  min-width: min(100%, 320px);
+}
+
+.ui-row-actions a {
+  white-space: nowrap;
+}
+
+.ui-button--danger {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+}
+
+.ui-button--danger:hover {
+  border-color: #8f2929;
+  background: #8f2929;
+}
+
+.ui-table td .ui-input,
+.ui-table td .ui-field__control {
+  min-width: 130px;
+}
+
+.ui-permission-matrix input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-teal-700);
+}
+
+.ui-permission-matrix th:not(:first-child, :nth-child(2)),
+.ui-permission-matrix td:not(:first-child, :nth-child(2)) {
+  text-align: center;
+}
+
+.ui-disclosure-panel[hidden],
+[data-table-no-results][hidden] {
+  display: none;
+}
+
+[data-table-no-results] {
+  padding: var(--space-4);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 900px) {
+  .ui-admin-form,
+  .ui-admin-form--wide {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-admin-section__header,
+  .ui-admin-toolbar,
+  .ui-backup-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ui-admin-section__header .ui-button,
+  .ui-admin-toolbar .ui-button,
+  .ui-backup-actions .ui-button {
+    width: 100%;
+  }
+}

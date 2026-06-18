@@ -1986,6 +1986,14 @@ def bi_gerencial(request: Request):
 
 # ---------------- Configurações ----------------
 
+def role_email_settings_for_view():
+    """Return editable role e-mail settings without exposing stored passwords."""
+    return q("""
+        SELECT id, role, email_from, smtp_host, smtp_port, smtp_user, signature
+        FROM role_email_settings
+        ORDER BY role
+    """)
+
 @app.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
     if not require_login(request):
@@ -2000,7 +2008,7 @@ def settings(request: Request):
         ORDER BY u.id DESC
     """)
     sellers = q("SELECT * FROM sellers ORDER BY name")
-    role_emails = q("SELECT * FROM role_email_settings ORDER BY role")
+    role_emails = role_email_settings_for_view()
     return render(request, "settings.html", {"users": users, "sellers": sellers, "edit_user": None, "role_emails": role_emails})
 
 
@@ -2035,7 +2043,7 @@ def user_edit(request: Request, user_id: int):
         ORDER BY u.id DESC
     """)
     sellers = q("SELECT * FROM sellers ORDER BY name")
-    role_emails = q("SELECT * FROM role_email_settings ORDER BY role")
+    role_emails = role_email_settings_for_view()
     edit_user = q("SELECT * FROM users WHERE id=?", (user_id,), one=True)
     return render(request, "settings.html", {
         "users": users,
@@ -2054,11 +2062,11 @@ async def user_update(request: Request, user_id: int):
 
     form = await request.form()
     username = str(form.get("username", "")).strip()
+    email = str(form.get("email", "")).strip()
     password = str(form.get("password", "")).strip()
     role = str(form.get("role", "")).strip()
     seller_id = form.get("seller_id") or None
     active = form.get("active") or "Sim"
-    email = str(form.get("email", "")).strip()
     smtp_email = str(form.get("smtp_email", "")).strip()
     smtp_host = str(form.get("smtp_host", "")).strip()
     smtp_port = str(form.get("smtp_port", "")).strip()
@@ -2122,6 +2130,7 @@ async def user_create(request: Request):
 
     form = await request.form()
     username = str(form.get("username", "")).strip()
+    email = str(form.get("email", "")).strip()
     password = str(form.get("password", "")).strip()
 
     if not username or not password:
@@ -2130,14 +2139,18 @@ async def user_create(request: Request):
     if q("SELECT id FROM users WHERE username=?", (username,), one=True):
         return PlainTextResponse("Já existe um usuário com esse login.", status_code=400)
 
-    exec_sql("""
-        INSERT INTO users(username,password_hash,role,seller_id,active)
-        VALUES(?,?,?,?,?)
+    user_id = exec_sql("""
+        INSERT INTO users(username,password_hash,role,seller_id,active,email)
+        VALUES(?,?,?,?,?,?)
     """, (
         username, hash_password(password),
         form.get("role"), form.get("seller_id") or None,
-        form.get("active") or "Sim"
+        form.get("active") or "Sim", email
     ))
+    exec_sql(
+        "INSERT OR IGNORE INTO user_profiles(user_id,full_name,email) VALUES(?,?,?)",
+        (user_id, username, email),
+    )
     return RedirectResponse("/settings", status_code=303)
 
 
@@ -2153,6 +2166,8 @@ async def role_email_save(request: Request):
     roles = q("SELECT * FROM role_email_settings ORDER BY role")
     for r in roles:
         rid = r["id"]
+        submitted_password = str(form.get(f"smtp_password_{rid}", "")).strip()
+        smtp_password = submitted_password or r["smtp_password"]
         exec_sql("""
             UPDATE role_email_settings
             SET email_from=?, smtp_host=?, smtp_port=?, smtp_user=?, smtp_password=?, signature=?
@@ -2162,7 +2177,7 @@ async def role_email_save(request: Request):
             form.get(f"smtp_host_{rid}"),
             form.get(f"smtp_port_{rid}"),
             form.get(f"smtp_user_{rid}"),
-            form.get(f"smtp_password_{rid}"),
+            smtp_password,
             form.get(f"signature_{rid}"),
             rid
         ))

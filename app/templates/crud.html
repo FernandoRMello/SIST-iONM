@@ -1,35 +1,127 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import empty_state, icon, page_header %}
+
 {% block title %}{{ meta.title }}{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css">
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/assets/js/forms.js" defer></script>
+<script src="/assets/js/tables.js" defer></script>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-  <h2>{% if edit %}Editar{% else %}Novo{% endif %} {{ meta.title }}</h2>
-  <form class="form-grid" method="post" action="/cadastros/{{ table }}/save-form">
-    <input type="hidden" name="id" value="{{ edit.id if edit else '' }}">
-    {% for key,label in meta.fields %}
-      <label>{{ label }}
-        <input name="{{ key }}" value="{{ edit[key] if edit else '' }}">
+<div class="ui-admin-stack">
+  {% call page_header(
+    meta.title,
+    'Cadastre, consulte e mantenha os registros desta área.',
+    'Cadastros'
+  ) %}
+  <a class="ui-button ui-button--primary" href="#record-form">
+    {{ icon('plus', 16) }} Novo registro
+  </a>
+  {% endcall %}
+
+  <section class="ui-card ui-admin-section" id="record-form">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>{% if edit %}Editar{% else %}Novo{% endif %} {{ meta.title }}</h2>
+        <p>Preencha os campos abaixo e confirme para salvar.</p>
+      </div>
+    </header>
+
+    <form class="ui-admin-form" method="post" action="/cadastros/{{ table }}/save-form">
+      <input type="hidden" name="id" value="{{ edit.id if edit else '' }}">
+      {% for key, label in meta.fields %}
+      {% set field_type = 'email' if 'email' in key else 'number' if key in ['supplier_id', 'supplier_price', 'ionm_price', 'price_table_1', 'price_table_2', 'price_table_3', 'min_price', 'commission_rate'] else 'text' %}
+      <label class="ui-field" for="field-{{ key }}">
+        <span class="ui-field__label">{{ label }}</span>
+        <input
+          class="ui-field__control"
+          id="field-{{ key }}"
+          name="{{ key }}"
+          type="{{ field_type }}"
+          value="{{ edit[key] if edit else '' }}"
+          {% if field_type == 'number' %}step="any"{% endif %}
+        >
       </label>
-    {% endfor %}
-    <div class="form-actions">
-      <button class="btn">Salvar</button>
-      <a class="btn ghost" href="/cadastros/{{ table }}">Novo / Limpar</a>
+      {% endfor %}
+
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar</button>
+        <a class="ui-button ui-button--secondary" href="/cadastros/{{ table }}">
+          Novo / Limpar
+        </a>
+      </div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <div class="ui-admin-toolbar">
+      <div>
+        <h2>Lista de registros</h2>
+        <p>{{ rows|length }} item(ns) nesta página</p>
+      </div>
+      <label class="ui-field ui-admin-search" for="crud-search">
+        <span class="ui-field__label">Buscar nos registros</span>
+        <input
+          class="ui-field__control"
+          id="crud-search"
+          type="search"
+          placeholder="Digite para filtrar"
+          autocomplete="off"
+          data-table-search="crud-records"
+        >
+      </label>
     </div>
-  </form>
-</div>
-<div class="card">
-  <h2>Lista</h2>
-  <table>
-    <thead><tr><th>ID</th>{% for key,label in meta.fields %}<th>{{ label }}</th>{% endfor %}<th>Ações</th></tr></thead>
-    <tbody>
-    {% for r in rows %}
-      <tr>
-        <td>{{ r.id }}</td>
-        {% for key,label in meta.fields %}<td>{{ r[key] }}</td>{% endfor %}
-        <td><a href="/cadastros/{{ table }}/edit/{{ r.id }}">Editar</a>{% if user.role == 'admin' %} · <a href="/cadastros/{{ table }}/delete/{{ r.id }}">Excluir</a>{% endif %}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+
+    {% if rows %}
+    <div class="ui-table-wrapper">
+      <table class="ui-table" id="crud-records" data-table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            {% for key, label in meta.fields %}<th>{{ label }}</th>{% endfor %}
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          <tr>
+            <td>{{ row.id }}</td>
+            {% for key, label in meta.fields %}<td>{{ row[key] }}</td>{% endfor %}
+            <td>
+              <div class="ui-row-actions">
+                <a
+                  class="ui-button ui-button--ghost"
+                  href="/cadastros/{{ table }}/edit/{{ row.id }}"
+                  aria-label="Editar registro {{ row.id }}"
+                >Editar</a>
+                {% if user.role == 'admin' %}
+                <a
+                  class="ui-button ui-button--danger"
+                  href="/cadastros/{{ table }}/delete/{{ row.id }}"
+                  aria-label="Excluir registro {{ row.id }}"
+                  data-confirm="Excluir permanentemente este registro?"
+                >Excluir</a>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p data-table-no-results="crud-records" hidden></p>
+    {% else %}
+    {{ empty_state(
+      'Nenhum registro cadastrado',
+      'Use o formulário acima para adicionar o primeiro item.',
+      'search'
+    ) }}
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

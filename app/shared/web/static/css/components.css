@@ -33,13 +33,17 @@
 }
 
 .ui-button--primary {
-  background: linear-gradient(180deg, var(--color-teal-600), var(--color-teal-700));
+  background: linear-gradient(180deg, var(--color-teal-700), var(--color-teal-800));
   color: var(--color-text-inverse);
   box-shadow: var(--shadow-sm);
 }
 
 .ui-button--primary:hover {
-  background: linear-gradient(180deg, var(--color-teal-500), var(--color-teal-700));
+  background: linear-gradient(180deg, var(--color-teal-800), var(--color-teal-900));
+}
+
+.ui-button--primary:active {
+  background: linear-gradient(180deg, var(--color-teal-900), var(--color-teal-900));
 }
 
 .ui-button--secondary {

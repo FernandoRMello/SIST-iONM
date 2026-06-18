@@ -8,6 +8,8 @@
   --color-navy-800: #132948;
   --color-navy-700: #1a385f;
   --color-navy-600: #224675;
+  --color-teal-900: #09595c;
+  --color-teal-800: #0a6668;
   --color-teal-700: #0b7274;
   --color-teal-600: #0f8b8d;
   --color-teal-500: #1aa5a8;
@@ -22,7 +24,7 @@
   --color-text-inverse: #f7fbff;
   --color-success: #1f7a4f;
   --color-success-soft: #ddf5e7;
-  --color-warning: #9a6500;
+  --color-warning: #7a4d00;
   --color-warning-soft: #fff1cf;
   --color-error: #b03838;
   --color-error-soft: #fce5e5;

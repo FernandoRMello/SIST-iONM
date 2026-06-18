@@ -124,4 +124,12 @@ table {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  .ui-button,
+  .ui-button:hover,
+  .ui-button:active,
+  .ui-card--interactive,
+  .ui-card--interactive:hover {
+    transform: none !important;
+  }
 }

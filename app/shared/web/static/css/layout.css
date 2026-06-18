@@ -102,12 +102,20 @@
     grid-template-columns: var(--sidebar-width-expanded) minmax(0, 1fr);
   }
 
+  .ui-shell--collapsed {
+    grid-template-columns: var(--sidebar-width-collapsed) minmax(0, 1fr);
+  }
+
   .ui-sidebar {
     position: sticky;
     width: auto;
     height: 100vh;
     transform: translateX(0);
     box-shadow: none;
+  }
+
+  .ui-shell--collapsed .ui-sidebar {
+    width: var(--sidebar-width-collapsed);
   }
 
   .ui-main {

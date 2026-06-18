@@ -1,22 +1,29 @@
 
-import os
-import sqlite3
 import hashlib
+import os
 import secrets
 import shutil
-import subprocess
 import socket
-from datetime import datetime, date
+import sqlite3
+import subprocess
+from datetime import date, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Form, UploadFile, File, WebSocket, WebSocketDisconnect, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, PlainTextResponse, JSONResponse, JSONResponse
+from fastapi import FastAPI, File, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 APP_NAME = "SIST-iONM"
 BASE_DIR = Path(__file__).resolve().parent.parent
+SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 DATA_DIR = BASE_DIR / "data"
 PDF_DIR = BASE_DIR / "exports" / "pdf"
 XML_DIR = BASE_DIR / "exports" / "xml"
@@ -28,6 +35,7 @@ for folder in [DATA_DIR, PDF_DIR, XML_DIR, UPLOAD_DIR]:
 
 app = FastAPI(title=APP_NAME)
 app.add_middleware(SessionMiddleware, secret_key="sist-ionm-local-session-key")
+app.mount("/assets", StaticFiles(directory=SHARED_STATIC_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 templates = Jinja2Templates(directory=BASE_DIR / "app" / "templates")
@@ -830,11 +838,17 @@ def commission_rows(seller_id=None):
 
 
 def generate_pdf_ro_supplier(opp_id):
-    from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_RIGHT
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_RIGHT
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     opp = opp_summary(opp_id)
     path = PDF_DIR / f"{opp['ro_number']}_RO_fornecedor.pdf"
@@ -919,11 +933,17 @@ def generate_pdf_ro_supplier(opp_id):
 
 
 def generate_pdf_proposal(opp_id):
-    from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_RIGHT
     from reportlab.lib import colors
+    from reportlab.lib.enums import TA_RIGHT
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+    from reportlab.platypus import (
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     opp = opp_summary(opp_id)
     path = PDF_DIR / f"{opp['ro_number']}_proposta.pdf"

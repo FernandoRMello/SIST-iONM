@@ -1,0 +1,87 @@
+:root {
+  color-scheme: light;
+  --font-sans: "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: "Cascadia Code", Consolas, "Liberation Mono", monospace;
+
+  --color-navy-950: #081426;
+  --color-navy-900: #0d1d34;
+  --color-navy-800: #132948;
+  --color-navy-700: #1a385f;
+  --color-navy-600: #224675;
+  --color-teal-700: #0b7274;
+  --color-teal-600: #0f8b8d;
+  --color-teal-500: #1aa5a8;
+  --color-teal-100: #d7f1f1;
+  --color-canvas: #f4f7fb;
+  --color-surface: #ffffff;
+  --color-surface-subtle: #ebf1f7;
+  --color-border: #ced8e5;
+  --color-border-strong: #99abbe;
+  --color-text: #172033;
+  --color-text-muted: #51627a;
+  --color-text-inverse: #f7fbff;
+  --color-success: #1f7a4f;
+  --color-success-soft: #ddf5e7;
+  --color-warning: #9a6500;
+  --color-warning-soft: #fff1cf;
+  --color-error: #b03838;
+  --color-error-soft: #fce5e5;
+  --color-info: #1a5db4;
+  --color-info-soft: #ddebff;
+  --color-overlay: rgb(8 20 38 / 0.56);
+
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-pill: 999px;
+
+  --font-size-1: 12px;
+  --font-size-2: 14px;
+  --font-size-3: 16px;
+  --font-size-4: 20px;
+  --font-size-5: 24px;
+  --font-size-6: 32px;
+  --font-size-7: 48px;
+  --line-height-heading: 1.2;
+  --line-height-body: 1.5;
+  --letter-spacing-heading: -0.02em;
+
+  --shadow-sm: 0 8px 20px rgb(8 20 38 / 0.06);
+  --shadow-md: 0 14px 30px rgb(8 20 38 / 0.10);
+  --shadow-focus: 0 0 0 3px rgb(15 139 141 / 0.28);
+  --focus-ring: var(--shadow-focus);
+
+  --duration-fast: 120ms;
+  --duration-base: 180ms;
+  --ease-standard: ease;
+
+  --sidebar-width-collapsed: 72px;
+  --sidebar-width-expanded: 280px;
+  --drawer-width: 320px;
+  --topbar-height: 64px;
+  --content-max-width: 1280px;
+
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  --z-base: 1;
+  --z-header: 10;
+  --z-drawer: 20;
+  --z-toast: 30;
+}

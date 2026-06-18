@@ -1,0 +1,1 @@
+"""Shared web UI resources."""

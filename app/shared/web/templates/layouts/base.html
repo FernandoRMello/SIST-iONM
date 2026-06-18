@@ -1,0 +1,161 @@
+{% from "components/macros.html" import icon %}
+{% macro nav_item(href, label, icon_name, prefix=none) -%}
+{% set active = current_path == href or (prefix and current_path.startswith(prefix)) %}
+<a class="ui-nav-link{% if active %} is-active{% endif %}" href="{{ href }}" data-nav-item data-nav-label="{{ label|lower }}"{% if active %} aria-current="page"{% endif %}>
+  {{ icon(icon_name, 20) }}
+  <span class="ui-nav-link__label">{{ label }}</span>
+</a>
+{%- endmacro %}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#081426">
+  <title>{% block title %}SIST-iONM{% endblock %} · {{ app_name }}</title>
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/assets/css/tokens.css">
+  <link rel="stylesheet" href="/assets/css/reset.css">
+  <link rel="stylesheet" href="/assets/css/layout.css">
+  <link rel="stylesheet" href="/assets/css/components.css">
+  <link rel="stylesheet" href="/assets/css/utilities.css">
+  {% block page_styles %}{% endblock %}
+  <script src="/assets/js/app-shell.js" defer></script>
+  <script src="/assets/js/navigation.js" defer></script>
+  {% block page_scripts %}{% endblock %}
+  {% if user %}<script src="/static/chat_realtime.js" defer></script>{% endif %}
+</head>
+<body>
+{% if user %}
+<a class="ui-skip-link" href="#main-content">Pular para o conteúdo</a>
+<div class="ui-shell" data-shell>
+  <aside class="ui-sidebar" id="primary-sidebar" aria-label="Menu do sistema">
+    <div class="ui-brand">
+      <span class="ui-brand__mark" aria-hidden="true">S</span>
+      <span class="ui-brand__copy"><strong>SIST-iONM</strong><small>Portal corporativo</small></span>
+      <button class="ui-icon-button ui-sidebar__collapse" type="button" data-action="toggle-collapse" aria-label="Recolher menu" title="Recolher menu">{{ icon('menu', 18) }}</button>
+    </div>
+
+    <label class="ui-nav-search">
+      <span class="ui-visually-hidden">Buscar no menu</span>
+      {{ icon('search', 17) }}
+      <input type="search" placeholder="Buscar no menu" autocomplete="off" data-nav-search>
+    </label>
+
+    <nav class="ui-navigation" aria-label="Navegação principal">
+      <section class="ui-nav-group" data-nav-group>
+        <h2>Visão geral</h2>
+        {{ nav_item('/', 'Dashboard', 'dashboard') }}
+        {{ nav_item('/feed', 'Feed', 'feed', '/feed') }}
+      </section>
+      <section class="ui-nav-group" data-nav-group>
+        <h2>Relacionamento</h2>
+        {{ nav_item('/cadastros/clients', 'Clientes', 'clients', '/cadastros/clients') }}
+        {{ nav_item('/opportunities', 'Pipeline / R.O', 'pipeline', '/opportunities') }}
+        {{ nav_item('/chat', 'Chat', 'chat', '/chat') }}
+        {{ nav_item('/profile', 'Meu perfil', 'user', '/profile') }}
+        {{ nav_item('/orgchart', 'Organograma', 'orgchart', '/orgchart') }}
+      </section>
+      <section class="ui-nav-group" data-nav-group>
+        <h2>Operação</h2>
+        {{ nav_item('/cadastros/products', 'Produtos', 'products', '/cadastros/products') }}
+        {{ nav_item('/cadastros/suppliers', 'Fornecedores', 'suppliers', '/cadastros/suppliers') }}
+        {{ nav_item('/orders', 'Pedidos', 'orders', '/orders') }}
+        {{ nav_item('/backoffice/purchases', 'Compras', 'purchases', '/backoffice/purchases') }}
+      </section>
+      <section class="ui-nav-group" data-nav-group>
+        <h2>Financeiro</h2>
+        {{ nav_item('/finance', 'Contas e custos', 'finance', '/finance') }}
+        {{ nav_item('/commissions', 'Comissões', 'money', '/commissions') }}
+        {{ nav_item('/reports/sellers', 'Relatórios', 'bi', '/reports/sellers') }}
+      </section>
+      {% if can_view_bi or user.role == 'admin' %}
+      <section class="ui-nav-group" data-nav-group>
+        <h2>Administração</h2>
+        {% if can_view_bi %}{{ nav_item('/bi-gerencial', 'BI Gerencial', 'bi', '/bi-gerencial') }}{% endif %}
+        {% if user.role == 'admin' %}
+          {{ nav_item('/cadastros/sellers', 'Vendedores', 'sellers', '/cadastros/sellers') }}
+          {{ nav_item('/settings', 'Configurações', 'settings', '/settings') }}
+          {{ nav_item('/admin/permissions', 'Permissões', 'permissions', '/admin/permissions') }}
+        {% endif %}
+      </section>
+      {% endif %}
+    </nav>
+  </aside>
+
+  <button class="ui-backdrop" type="button" data-action="close-sidebar" aria-label="Fechar menu" hidden></button>
+
+  <div class="ui-main">
+    <header class="ui-topbar">
+      <div class="ui-topbar__leading">
+        <button class="ui-icon-button ui-mobile-menu" type="button" data-action="toggle-sidebar" aria-controls="primary-sidebar" aria-expanded="false" aria-label="Abrir menu">{{ icon('menu', 20) }}</button>
+        <div>
+          <nav class="ui-breadcrumb" aria-label="Breadcrumb"><span>{{ cfg.company_name or app_name }}</span><span aria-hidden="true">/</span><strong>{{ self.title() }}</strong></nav>
+          <h1>{{ self.title() }}</h1>
+        </div>
+      </div>
+      <div class="ui-topbar__actions">
+        <a class="ui-button ui-button--secondary ui-quick-action" href="/cadastros/clients">{{ icon('plus', 16) }} Novo cliente</a>
+        <a class="ui-button ui-button--primary ui-quick-action" href="/opportunities">{{ icon('plus', 16) }} Nova R.O.</a>
+        <button class="ui-icon-button" type="button" data-chat-action="notifications" aria-label="Notificações">{{ icon('bell', 20) }}<span class="ui-notification-dot" id="chatTotalBadge">0</span></button>
+        <div class="ui-profile-menu">
+          <button class="ui-profile-trigger" type="button" data-action="toggle-profile" aria-expanded="false" aria-controls="profile-menu">
+            <span class="ui-avatar" aria-hidden="true">{{ user.username[:1]|upper }}</span>
+            <span class="ui-profile-trigger__copy"><strong>{{ user.username }}</strong><small>{{ user.role }}</small></span>
+            {{ icon('arrow-right', 16, class_name='ui-profile-chevron') }}
+          </button>
+          <div class="ui-profile-popover" id="profile-menu" hidden>
+            <a href="/profile">{{ icon('user', 17) }} Meu perfil</a>
+            {% if user.role == 'admin' %}<a href="/settings">{{ icon('settings', 17) }} Configurações</a>{% endif %}
+            <a href="/logout">{{ icon('logout', 17) }} Sair</a>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="ui-content" id="main-content" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <div class="bitrix-chat-rail" id="bitrixChatRail" aria-label="Contatos e notificações">
+    <button class="rail-icon rail-general" type="button" data-chat-action="general" title="Chat geral" aria-label="Abrir chat geral">{{ icon('chat', 20) }}</button>
+    <div class="rail-divider"></div>
+    <div class="rail-contacts" id="railContacts"></div>
+  </div>
+
+  <section class="bitrix-chat-panel" id="bitrixChatPanel" aria-label="Chat SIST-iONM">
+    <header class="bitrix-chat-header">
+      <div><strong id="bitrixChatTitle">Chat SIST-iONM</strong><span id="bitrixChatSubtitle">Tempo real</span></div>
+      <div class="bitrix-chat-header-actions">
+        <button type="button" data-chat-action="minimize" title="Minimizar" aria-label="Minimizar chat">—</button>
+        <button type="button" data-chat-action="close" title="Fechar" aria-label="Fechar chat">{{ icon('close', 18) }}</button>
+      </div>
+    </header>
+    <div class="bitrix-chat-search"><label class="ui-visually-hidden" for="bitrixChatSearch">Buscar contato</label><input id="bitrixChatSearch" placeholder="Buscar contato"></div>
+    <div class="bitrix-chat-body">
+      <aside class="bitrix-chat-contacts" aria-label="Conversas">
+        <button class="bitrix-contact active" id="bitrixGeneralContact" type="button" data-chat-action="general">
+          <span class="contact-avatar general">{{ icon('chat', 18) }}</span>
+          <span class="contact-info"><b>Chat geral</b><small>Todos os usuários</small></span>
+          <span class="contact-badge" data-room-badge="general">0</span>
+        </button>
+        <div id="bitrixContactsList"></div>
+      </aside>
+      <section class="bitrix-chat-conversation" aria-label="Mensagens">
+        <div class="bitrix-chat-messages" id="bitrixChatMessages" aria-live="polite"></div>
+        <form class="bitrix-chat-form" id="bitrixChatForm">
+          <label class="ui-visually-hidden" for="bitrixChatInput">Mensagem</label>
+          <input id="bitrixChatInput" placeholder="Digite uma mensagem" autocomplete="off">
+          <button class="ui-button ui-button--primary" type="submit" aria-label="Enviar mensagem">{{ icon('arrow-right', 18) }}</button>
+        </form>
+      </section>
+    </div>
+  </section>
+</div>
+{% else %}
+{% block public %}{% endblock %}
+{% endif %}
+</body>
+</html>

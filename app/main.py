@@ -254,14 +254,17 @@ def current_user(request: Request):
 
 
 def render(request: Request, template: str, context=None):
+    user = current_user(request)
     ctx = context or {}
     ctx.update({
         "request": request,
-        "user": current_user(request),
+        "user": user,
         "cfg": config(),
         "money": money,
         "prob_class": prob_class,
         "app_name": APP_NAME,
+        "current_path": request.url.path,
+        "can_view_bi": bool(user and user.get("username") == "fernando.mello"),
     })
     return templates.TemplateResponse(template, ctx)
 

@@ -1,88 +1,43 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import page_header, stat_card, status_badge, empty_state %}
 {% block title %}BI Gerencial{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/executive.css">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/feedback.js" defer></script>{% endblock %}
 {% block content %}
-<div class="bi-hero">
-  <div>
-    <h2>BI Gerencial OverpriceON</h2>
-    <p>Leitura executiva exclusiva do administrador: propostas, contas, LL projetado, investimentos e foco comercial.</p>
-  </div>
-  <div class="bi-actions">
-    <button class="btn ghost" type="button" onclick="document.body.classList.toggle('hide-money')">Ocultar/mostrar valores</button>
-    <button class="btn" onclick="window.print()">Imprimir BI</button>
-  </div>
-</div>
+<div class="ui-section">
+  {% call page_header('BI Gerencial OverpriceON', 'Propostas, compromissos, LL projetado e prioridades comerciais.', 'Inteligência gerencial') %}
+    <button class="ui-button ui-button--secondary" type="button" data-action="toggle-money">Ocultar valores</button>
+    <button class="ui-button ui-button--primary" type="button" data-action="print">Imprimir BI</button>
+  {% endcall %}
 
-<div class="card bi-info">
-  <strong>Base da simulação:</strong>
-  o rendimento diário é calculado automaticamente sobre o <b>LL projetado</b> do pipeline:
-  <span class="money-sensitive">{{ money(kpis.capital_aplicado) }}</span>
-</div>
-
-<div class="kpi-grid bi-kpis">
-  <div class="card kpi kpi-blue"><span>Valores em proposta</span><strong class="money-sensitive">{{ money(kpis.proposal_value) }}</strong></div>
-  <div class="card kpi kpi-purple"><span>Proposta ponderada</span><strong class="money-sensitive">{{ money(kpis.weighted_sale) }}</strong></div>
-  <div class="card kpi kpi-teal"><span>A receber</span><strong class="money-sensitive">{{ money(kpis.receivables_total) }}</strong></div>
-  <div class="card kpi kpi-red"><span>A pagar</span><strong class="money-sensitive">{{ money(kpis.payables_total) }}</strong></div>
-  <div class="card kpi kpi-green"><span>Overprice ponderado</span><strong class="money-sensitive">{{ money(kpis.weighted_over) }}</strong></div>
-  <div class="card kpi kpi-orange"><span>LL projetado</span><strong class="money-sensitive">{{ money(kpis.projected_ll) }}</strong></div>
-</div>
-
-<div class="card">
-  <h2>Rendimento diário do LL aplicado</h2>
-  <p class="muted">Simulação gerencial sobre o capital informado. Renda variável e cripto são cenários estimados, não garantia de retorno.</p>
-  <div class="investment-strip">
-    {% for src in investment_sources %}
-    <div class="investment-card">
-      <span>{{ src.kind }}</span>
-      <h3>{{ src.name }}</h3>
-      <strong class="money-sensitive">{{ money(src.daily_gain) }}/dia</strong>
-      <p>{{ '%.4f'|format(src.daily_rate * 100) }}% ao dia · {{ money(src.monthly_gain) }}/30 dias · Risco: {{ src.risk }}</p>
+  <section class="ui-section" aria-labelledby="bi-overview">
+    <header class="ui-section-header"><div><p class="ui-eyebrow">Resumo</p><h2 id="bi-overview">Visão executiva</h2><p>Indicadores consolidados para decisão.</p></div></header>
+    <div class="ui-stat-grid">
+      {{ stat_card('Valores em proposta', money(kpis.proposal_value), 'pipeline', 'info', none, true) }}
+      {{ stat_card('Proposta ponderada', money(kpis.weighted_sale), 'bi', 'neutral', none, true) }}
+      {{ stat_card('A receber', money(kpis.receivables_total), 'finance', 'info', none, true) }}
+      {{ stat_card('A pagar', money(kpis.payables_total), 'finance', 'error', none, true) }}
+      {{ stat_card('Overprice ponderado', money(kpis.weighted_over), 'money', 'success', none, true) }}
+      {{ stat_card('LL projetado', money(kpis.projected_ll), 'bi', 'warning', none, true) }}
     </div>
-    {% endfor %}
-  </div>
-</div>
+    <div class="ui-feedback ui-feedback--info"><strong>Base da simulação</strong><span>Rendimento calculado sobre o LL projetado: <b class="money-sensitive">{{ money(kpis.capital_aplicado) }}</b>.</span></div>
+  </section>
 
-<div class="grid2">
-  <div class="card">
-    <h2>Produtos para focar</h2>
-    <p class="muted">Prioridade calculada por overprice ponderado, valor de proposta e probabilidade.</p>
-    <table>
-      <thead><tr><th>Produto</th><th>Qtd</th><th>Venda ponderada</th><th>Overprice ponderado</th></tr></thead>
-      <tbody>
-        {% for p in product_focus %}
-        <tr><td>{{ p.product }}</td><td>{{ '%.0f'|format(p.qty) }}</td><td class="money-sensitive">{{ money(p.weighted_sale) }}</td><td class="money-sensitive">{{ money(p.weighted_over) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <h2>Clientes para trabalhar agora</h2>
-    <p class="muted">Ordenado por overprice ponderado e probabilidade média de fechamento.</p>
-    <table>
-      <thead><tr><th>Cliente</th><th>Prob. média</th><th>Venda ponderada</th><th>Overprice ponderado</th></tr></thead>
-      <tbody>
-        {% for c in client_focus %}
-        <tr class="{{ prob_class(c.avg_probability) }}"><td>{{ c.client }}</td><td><span class="prob-badge {{ prob_class(c.avg_probability) }}">{{ '%.0f'|format(c.avg_probability) }}%</span></td><td class="money-sensitive">{{ money(c.weighted_sale) }}</td><td class="money-sensitive">{{ money(c.weighted_over) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+  <section class="ui-card" aria-labelledby="investment-scenarios">
+    <header class="ui-section-header"><div><p class="ui-eyebrow">Projeções</p><h2 id="investment-scenarios">Cenários de investimento</h2><p>Estimativas gerenciais; não representam garantia de retorno.</p></div></header>
+    <div class="ui-investment-grid">
+      {% for src in investment_sources %}<article class="ui-investment-card"><span>{{ src.kind }}</span><h3>{{ src.name }}</h3><strong class="money-sensitive">{{ money(src.daily_gain) }}/dia</strong><p>{{ '%.4f'|format(src.daily_rate * 100) }}% ao dia · {{ money(src.monthly_gain) }}/30 dias</p>{{ status_badge('Risco: ' ~ src.risk, 'warning') }}</article>{% endfor %}
+    </div>
+  </section>
 
-<div class="card">
-  <h2>Pipeline por oportunidade</h2>
-  <table>
-    <thead><tr><th>R.O</th><th>Cliente</th><th>Vendedor</th><th>Status</th><th>Prob.</th><th>Valor proposta</th><th>Overprice</th><th>Comissão</th></tr></thead>
-    <tbody>
-    {% for o in opps %}
-      <tr class="opportunity-row {{ prob_class(o.probability) }}">
-        <td>{{ o.ro_number }}</td><td>{{ o.client_name }}</td><td>{{ o.seller_name }}</td><td><span class="pill">{{ o.status }}</span></td>
-        <td><span class="prob-badge {{ prob_class(o.probability) }}">{{ '%.0f'|format(o.probability or 0) }}%</span></td>
-        <td class="money-sensitive">{{ money(o.total_sale) }}</td><td class="money-sensitive">{{ money(o.total_overprice) }}</td><td class="money-sensitive">{{ money(o.total_commission) }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+  <section class="ui-section" aria-labelledby="commercial-focus">
+    <header class="ui-section-header"><div><p class="ui-eyebrow">Prioridades</p><h2 id="commercial-focus">Recomendações comerciais</h2><p>Produtos para focar e clientes com maior retorno ponderado.</p></div></header>
+    <div class="ui-grid ui-grid--2">
+      <article class="ui-card"><h3>Produtos para focar</h3>{% if product_focus %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Produto</th><th>Qtd.</th><th>Venda ponderada</th><th>Overprice</th></tr></thead><tbody>{% for p in product_focus %}<tr><td>{{ p.product }}</td><td>{{ '%.0f'|format(p.qty) }}</td><td class="money-sensitive">{{ money(p.weighted_sale) }}</td><td class="money-sensitive">{{ money(p.weighted_over) }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Sem produtos para recomendar', 'O ranking aparecerá quando houver oportunidades com produtos.', 'products') }}{% endif %}</article>
+      <article class="ui-card"><h3>Clientes para trabalhar agora</h3>{% if client_focus %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Cliente</th><th>Probabilidade</th><th>Venda ponderada</th><th>Overprice</th></tr></thead><tbody>{% for c in client_focus %}<tr><td>{{ c.client }}</td><td><span class="ui-probability {{ prob_class(c.avg_probability) }}">{{ '%.0f'|format(c.avg_probability) }}%</span></td><td class="money-sensitive">{{ money(c.weighted_sale) }}</td><td class="money-sensitive">{{ money(c.weighted_over) }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Sem clientes ranqueados', 'O ranking aparecerá com o avanço do pipeline.', 'clients') }}{% endif %}</article>
+    </div>
+  </section>
+
+  <section class="ui-card" aria-labelledby="pipeline-opportunities"><header class="ui-section-header"><div><p class="ui-eyebrow">Detalhamento</p><h2 id="pipeline-opportunities">Pipeline por oportunidade</h2></div></header><div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>R.O.</th><th>Cliente</th><th>Vendedor</th><th>Status</th><th>Prob.</th><th>Proposta</th><th>Overprice</th><th>Comissão</th></tr></thead><tbody>{% for o in opps %}<tr><td>{{ o.ro_number }}</td><td>{{ o.client_name }}</td><td>{{ o.seller_name }}</td><td>{{ status_badge(o.status) }}</td><td><span class="ui-probability {{ prob_class(o.probability) }}">{{ '%.0f'|format(o.probability or 0) }}%</span></td><td class="money-sensitive">{{ money(o.total_sale) }}</td><td class="money-sensitive">{{ money(o.total_overprice) }}</td><td class="money-sensitive">{{ money(o.total_commission) }}</td></tr>{% endfor %}</tbody></table></div></section>
 </div>
 {% endblock %}

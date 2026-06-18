@@ -1,16 +1,26 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import icon %}
+{% block title %}Entrar{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/executive.css">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/feedback.js" defer></script>{% endblock %}
 {% block public %}
-<div class="login-page">
-  <form class="login-card" method="post" action="/login">
-    <h1>OverpriceON</h1>
-    <p>Sistema web local</p>
-    {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-    <label>Usuário</label>
-    <input name="username" autocomplete="username" required>
-    <label>Senha</label>
-    <input name="password" type="password" autocomplete="current-password" required>
-    <button>Entrar</button>
-  </form>
-</div>
+<main class="ui-login-page">
+  <section class="ui-login-brand" aria-label="SIST-iONM">
+    <div class="ui-login-brand__mark" aria-hidden="true">S</div>
+    <p class="ui-eyebrow">Portal corporativo</p>
+    <h1>SIST-iONM</h1>
+    <p>Informação comercial, operação e gestão em um único ambiente.</p>
+    <ul><li>Pipeline e relacionamento</li><li>Pedidos e financeiro</li><li>Comunicação em tempo real</li></ul>
+  </section>
+  <section class="ui-login-form-panel">
+    <form class="ui-login-card" method="post" action="/login">
+      <div><p class="ui-eyebrow">OverpriceON</p><h2>Bem-vindo de volta</h2><p>Entre com suas credenciais para continuar.</p></div>
+      {% if error %}<div class="ui-feedback ui-feedback--error" role="alert">{{ error }}</div>{% endif %}
+      <label class="ui-field" for="username"><span class="ui-field__label">Usuário</span><input class="ui-field__control" id="username" name="username" autocomplete="username" required autofocus></label>
+      <label class="ui-field" for="password"><span class="ui-field__label">Senha</span><span class="ui-password-control"><input class="ui-field__control" id="password" name="password" type="password" autocomplete="current-password" required><button class="ui-icon-button" type="button" data-action="toggle-password" aria-controls="password" aria-label="Mostrar senha">{{ icon('eye', 18) }}</button></span></label>
+      <button class="ui-button ui-button--primary ui-login-submit" type="submit">Entrar</button>
+      <small>Sistema web local · acesso restrito</small>
+    </form>
+  </section>
+</main>
 {% endblock %}

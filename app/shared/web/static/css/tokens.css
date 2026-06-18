@@ -85,5 +85,6 @@
   --z-base: 1;
   --z-header: 10;
   --z-drawer: 20;
+  --z-popover: 25;
   --z-toast: 30;
 }

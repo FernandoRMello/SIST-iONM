@@ -1,59 +1,48 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import page_header, stat_card, status_badge, empty_state %}
 {% block title %}Dashboard{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/executive.css">{% endblock %}
 {% block content %}
-<div class="dashboard-toolbar">
-  <div>
-    <h2>Painel comercial</h2>
-    <p>Pipeline, propostas, overprice e comissão com visualização rápida por probabilidade.</p>
-  </div>
-  <button class="btn ghost" type="button" onclick="document.body.classList.toggle('hide-money')">Ocultar/mostrar valores</button>
-</div>
+<div class="ui-section">
+  {% call page_header('Painel comercial', 'Pipeline, propostas e compromissos financeiros em uma leitura executiva.', 'Visão geral') %}
+    <button class="ui-button ui-button--secondary" type="button" data-action="toggle-money">Ocultar valores</button>
+    <a class="ui-button ui-button--primary" href="/opportunities">Nova R.O.</a>
+  {% endcall %}
 
-<div class="kpi-grid">
-  <div class="card kpi kpi-blue"><span>Oportunidades</span><strong>{{ kpis.opps }}</strong></div>
-  <div class="card kpi kpi-purple"><span>Pedidos</span><strong>{{ kpis.orders }}</strong></div>
-  <div class="card kpi kpi-green"><span>Overprice previsto</span><strong class="money-sensitive">{{ money(kpis.over) }}</strong></div>
-  <div class="card kpi kpi-orange"><span>Comissão total</span><strong class="money-sensitive">{{ money(kpis.comm) }}</strong></div>
-  <div class="card kpi kpi-teal"><span>A receber</span><strong class="money-sensitive">{{ money(kpis.recv) }}</strong></div>
-  <div class="card kpi kpi-red"><span>A pagar</span><strong class="money-sensitive">{{ money(kpis.pay) }}</strong></div>
-</div>
+  <section class="ui-stat-grid" aria-label="Indicadores comerciais">
+    {{ stat_card('Oportunidades', kpis.opps, 'pipeline', 'info', 'Negócios no pipeline') }}
+    {{ stat_card('Pedidos', kpis.orders, 'orders', 'neutral', 'Pedidos registrados') }}
+    {{ stat_card('Overprice previsto', money(kpis.over), 'bi', 'success', 'Margem estimada', true) }}
+    {{ stat_card('Comissão total', money(kpis.comm), 'money', 'warning', 'Comissões projetadas', true) }}
+    {{ stat_card('A receber', money(kpis.recv), 'finance', 'info', 'Recebíveis em aberto', true) }}
+    {{ stat_card('A pagar', money(kpis.pay), 'finance', 'error', 'Compromissos em aberto', true) }}
+  </section>
 
-<div class="card">
-  <div class="section-head">
-    <div>
-      <h2>Oportunidades recentes</h2>
-      <p>A cor da oportunidade indica a probabilidade de fechamento: vermelho menor, verde maior.</p>
+  <section class="ui-card">
+    <header class="ui-section-header">
+      <div><p class="ui-eyebrow">Pipeline</p><h2>Oportunidades recentes</h2><p>Probabilidade, proposta e margem dos negócios mais recentes.</p></div>
+      <a class="ui-button ui-button--secondary" href="/opportunities">Ver pipeline completo</a>
+    </header>
+    {% if opps %}
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>R.O.</th><th>Cliente</th><th>Vendedor</th><th>Status</th><th>Probabilidade</th><th>Proposta</th><th>Overprice</th><th>Comissão</th></tr></thead>
+        <tbody>
+        {% for o in opps %}
+          <tr>
+            <td><a class="ui-table-link" href="/opportunities/{{ o.id }}/card">{{ o.ro_number }}</a></td>
+            <td>{{ o.client_name }}</td><td>{{ o.seller_name }}</td>
+            <td>{{ status_badge(o.status, 'info') }}</td>
+            <td><span class="ui-probability {{ prob_class(o.probability) }}" aria-label="Probabilidade {{ '%.0f'|format(o.probability or 0) }} por cento"><span aria-hidden="true"></span>{{ '%.0f'|format(o.probability or 0) }}%</span></td>
+            <td class="money-sensitive">{{ money(o.total_sale) }}</td><td class="money-sensitive">{{ money(o.total_overprice) }}</td><td class="money-sensitive">{{ money(o.total_commission) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
     </div>
-    <a class="btn" href="/opportunities">Nova R.O</a>
-  </div>
-  <table>
-    <thead>
-      <tr>
-        <th>R.O</th>
-        <th>Cliente</th>
-        <th>Vendedor</th>
-        <th>Status</th>
-        <th>Prob.</th>
-        <th>Valor proposta</th>
-        <th>Overprice</th>
-        <th>Comissão</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for o in opps %}
-      <tr class="opportunity-row {{ prob_class(o.probability) }}">
-        <td>{{ o.ro_number }}</td>
-        <td>{{ o.client_name }}</td>
-        <td>{{ o.seller_name }}</td>
-        <td><span class="pill">{{ o.status }}</span></td>
-        <td><span class="prob-badge">{{ "%.0f"|format(o.probability or 0) }}%</span></td>
-        <td class="money-sensitive">{{ money(o.total_sale) }}</td>
-        <td class="money-sensitive">{{ money(o.total_overprice) }}</td>
-        <td class="money-sensitive">{{ money(o.total_commission) }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+    {% else %}
+      {{ empty_state('Nenhuma oportunidade ainda', 'Cadastre a primeira R.O. para acompanhar o pipeline.', 'pipeline', '/opportunities', 'Criar R.O.') }}
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

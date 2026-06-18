@@ -1,93 +1,168 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import empty_state, icon, page_header, status_badge %}
+
 {% block title %}Pipeline / R.O{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/crm.css">
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/assets/js/forms.js" defer></script>
+{% endblock %}
+
 {% block content %}
-<div class="pipeline-head">
-  <div>
-    <h2>Pipeline / Registro de Oportunidade</h2>
-    <p>Visualize em Kanban ou Lista. No Kanban, mova os cards por clique.</p>
-  </div>
-  <div class="pipeline-actions">
-    <a class="btn ghost" href="/opportunities?view_mode=kanban">Kanban</a>
-    <a class="btn ghost" href="/opportunities?view_mode=list">Lista</a>
-    <button class="btn" type="button" onclick="document.body.classList.toggle('new-ro-open')">Nova R.O</button>
-  </div>
-</div>
+<div class="ui-crm-stack">
+  {% call page_header(
+    'Pipeline / Registro de Oportunidade',
+    'Acompanhe o ciclo comercial, os próximos passos e o valor de cada R.O.',
+    'CRM'
+  ) %}
+  <button
+    class="ui-button ui-button--primary"
+    type="button"
+    data-disclosure
+    aria-controls="new-ro-panel"
+    aria-expanded="true"
+  >{{ icon('plus', 16) }} Nova R.O</button>
+  {% endcall %}
 
-<div class="card new-ro-panel">
-  <h2>Nova oportunidade</h2>
-  <form class="form-grid" method="post" action="/opportunities/create">
-    <label>Cliente<select name="client_id">{% for c in clients %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}</select></label>
-    <label>Fornecedor<select name="supplier_id">{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
-    {% if user.role == 'admin' %}
-    <label>Vendedor<select name="seller_id">{% for s in sellers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
-    {% endif %}
-    <label>Status<select name="status">{% for s in statuses %}<option>{{ s }}</option>{% endfor %}</select></label>
-    <label>Probabilidade %<input name="probability" value="40"></label>
-    <label>Previsão fechamento<input name="forecast_date" placeholder="AAAA-MM-DD"></label>
-    <label>Próximo follow-up<input name="next_followup" placeholder="AAAA-MM-DD"></label>
-    <label>Formas de pagamento desejadas<input name="payment_terms" placeholder="Ex.: boleto 28 dias, cartão, transferência"></label>
-    <label>Observações<input name="notes"></label>
-    <div class="form-actions"><button class="btn">Criar R.O</button></div>
-  </form>
-</div>
+  <nav class="ui-view-switcher" aria-label="Modo de visualização">
+    <a
+      class="ui-button {% if view_mode == 'kanban' %}ui-button--primary{% else %}ui-button--secondary{% endif %}"
+      href="/opportunities?view_mode=kanban" {% if view_mode == 'kanban' %}aria-current="page"{% endif %}
+    >Kanban</a>
+    <a
+      class="ui-button {% if view_mode == 'list' %}ui-button--primary{% else %}ui-button--secondary{% endif %}"
+      href="/opportunities?view_mode=list" {% if view_mode == 'list' %}aria-current="page"{% endif %}
+    >Lista</a>
+  </nav>
 
-{% if view_mode == 'list' %}
-<div class="card">
-  <h2>Lista de oportunidades</h2>
-  <table>
-    <thead><tr><th>R.O</th><th>Cliente</th><th>Vendedor</th><th>Status</th><th>Prob.</th><th>Proposta</th><th>Overprice</th><th>Ações</th></tr></thead>
-    <tbody>
-    {% for o in opps %}
-      <tr class="opportunity-row {{ prob_class(o.probability) }}">
-        <td><a href="/opportunities/{{ o.id }}/card">{{ o.ro_number }}</a></td>
-        <td>{{ o.client_name }}</td>
-        <td>{{ o.seller_name }}</td>
-        <td><span class="pill">{{ o.status }}</span></td>
-        <td><span class="prob-badge {{ prob_class(o.probability) }}">{{ "%.0f"|format(o.probability or 0) }}%</span></td>
-        <td class="money-sensitive">{{ money(o.total_sale) }}</td>
-        <td class="money-sensitive">{{ money(o.total_overprice) }}</td>
-        <td>
-          <a href="/opportunities/{{ o.id }}/move/prev">←</a>
-          <a href="/opportunities/{{ o.id }}/move/next">→</a>
-          <a href="/opportunities/{{ o.id }}/card">Abrir</a>
-        </td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% else %}
-<div class="kanban-board">
-  {% for status in statuses %}
-  <div class="kanban-column">
-    <div class="kanban-title">
-      <strong>{{ status }}</strong>
-      <span>{{ kanban.get(status, [])|length }}</span>
-    </div>
-    <div class="kanban-cards">
-      {% for o in kanban.get(status, []) %}
-      <div class="kanban-card {{ prob_class(o.probability) }}">
-        <div class="kanban-card-top">
-          <a href="/opportunities/{{ o.id }}/card">{{ o.ro_number }}</a>
-          <span class="prob-badge {{ prob_class(o.probability) }}">{{ "%.0f"|format(o.probability or 0) }}%</span>
-        </div>
-        <h3>{{ o.client_name }}</h3>
-        <p>{{ o.seller_name }}</p>
-        <div class="kanban-values">
-          <span>Proposta <b class="money-sensitive">{{ money(o.total_sale) }}</b></span>
-          <span>Overprice <b class="money-sensitive">{{ money(o.total_overprice) }}</b></span>
-          <span>Comissão <b class="money-sensitive">{{ money(o.total_commission) }}</b></span>
-        </div>
-        <div class="kanban-move">
-          <a class="btn ghost" href="/opportunities/{{ o.id }}/move/prev">← Voltar</a>
-          <a class="btn" href="/opportunities/{{ o.id }}/move/next">Avançar →</a>
-        </div>
+  <section class="ui-card ui-crm-form-panel" id="new-ro-panel">
+    <header>
+      <h2>Nova oportunidade</h2>
+      <p>Registre o contexto comercial e agende o próximo contato.</p>
+    </header>
+    <form class="ui-crm-form" method="post" action="/opportunities/create">
+      <label class="ui-field" for="opportunity-client">
+        <span class="ui-field__label">Cliente</span>
+        <select class="ui-field__control" id="opportunity-client" name="client_id" required>
+          {% for client in clients %}<option value="{{ client.id }}">{{ client.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="ui-field" for="opportunity-supplier">
+        <span class="ui-field__label">Fornecedor</span>
+        <select class="ui-field__control" id="opportunity-supplier" name="supplier_id" required>
+          {% for supplier in suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }}</option>{% endfor %}
+        </select>
+      </label>
+      {% if user.role == 'admin' %}
+      <label class="ui-field" for="opportunity-seller">
+        <span class="ui-field__label">Vendedor</span>
+        <select class="ui-field__control" id="opportunity-seller" name="seller_id" required>
+          {% for seller in sellers %}<option value="{{ seller.id }}">{{ seller.name }}</option>{% endfor %}
+        </select>
+      </label>
+      {% endif %}
+      <label class="ui-field" for="opportunity-status">
+        <span class="ui-field__label">Status</span>
+        <select class="ui-field__control" id="opportunity-status" name="status">
+          {% for status in statuses %}<option>{{ status }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="ui-field" for="opportunity-probability">
+        <span class="ui-field__label">Probabilidade %</span>
+        <input class="ui-field__control" id="opportunity-probability" name="probability" type="number" min="0" max="100" value="40">
+      </label>
+      <label class="ui-field" for="opportunity-forecast">
+        <span class="ui-field__label">Previsão de fechamento</span>
+        <input class="ui-field__control" id="opportunity-forecast" name="forecast_date" type="date">
+      </label>
+      <label class="ui-field" for="opportunity-followup">
+        <span class="ui-field__label">Próximo follow-up</span>
+        <input class="ui-field__control" id="opportunity-followup" name="next_followup" type="date">
+      </label>
+      <label class="ui-field" for="opportunity-payment">
+        <span class="ui-field__label">Formas de pagamento desejadas</span>
+        <input class="ui-field__control" id="opportunity-payment" name="payment_terms" placeholder="Ex.: boleto 28 dias">
+      </label>
+      <label class="ui-field ui-crm-form__full" for="opportunity-notes">
+        <span class="ui-field__label">Observações</span>
+        <textarea class="ui-field__control" id="opportunity-notes" name="notes" rows="3"></textarea>
+      </label>
+      <div class="ui-crm-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Criar R.O</button>
       </div>
-      {% endfor %}
+    </form>
+  </section>
+
+  {% if view_mode == 'list' %}
+  <section class="ui-card ui-crm-section">
+    <header><h2>Lista de oportunidades</h2><p>{{ opps|length }} oportunidade(s)</p></header>
+    {% if opps %}
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>R.O</th><th>Cliente</th><th>Vendedor</th><th>Status</th><th>Probabilidade</th><th>Próximo follow-up</th><th>Proposta</th><th>Overprice</th><th>Ações</th></tr></thead>
+        <tbody>
+          {% for opportunity in opps %}
+          <tr>
+            <td><a href="/opportunities/{{ opportunity.id }}/card"><strong>{{ opportunity.ro_number }}</strong></a></td>
+            <td>{{ opportunity.client_name }}</td>
+            <td>{{ opportunity.seller_name }}</td>
+            <td>{{ status_badge(opportunity.status, 'neutral') }}</td>
+            <td><span class="ui-probability {{ prob_class(opportunity.probability) }}">Probabilidade: {{ "%.0f"|format(opportunity.probability or 0) }}%</span></td>
+            <td>{{ opportunity.next_followup or 'Não agendado' }}</td>
+            <td class="money-sensitive">{{ money(opportunity.total_sale) }}</td>
+            <td class="money-sensitive">{{ money(opportunity.total_overprice) }}</td>
+            <td><div class="ui-row-actions">
+              <a href="/opportunities/{{ opportunity.id }}/move/prev" aria-label="Mover {{ opportunity.ro_number }} para a etapa anterior">Voltar</a>
+              <a href="/opportunities/{{ opportunity.id }}/move/next" aria-label="Mover {{ opportunity.ro_number }} para a próxima etapa">Avançar</a>
+              <a href="/opportunities/{{ opportunity.id }}/card" aria-label="Abrir {{ opportunity.ro_number }}">Abrir</a>
+            </div></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
-  {% endfor %}
+    {% else %}
+    {{ empty_state('Nenhuma oportunidade', 'Crie a primeira R.O. usando o formulário acima.', 'pipeline') }}
+    {% endif %}
+  </section>
+  {% else %}
+  <section class="ui-kanban" aria-label="Pipeline em Kanban">
+    {% for status in statuses %}
+    <section class="ui-kanban-column" aria-labelledby="status-{{ loop.index }}">
+      <header class="ui-kanban-column__header">
+        <h2 id="status-{{ loop.index }}">{{ status }}</h2>
+        <span>{{ kanban.get(status, [])|length }}</span>
+      </header>
+      <div class="ui-kanban-cards">
+        {% for opportunity in kanban.get(status, []) %}
+        <article class="ui-kanban-card">
+          <header>
+            <a href="/opportunities/{{ opportunity.id }}/card"><strong>{{ opportunity.ro_number }}</strong></a>
+            <span class="ui-probability {{ prob_class(opportunity.probability) }}">Probabilidade: {{ "%.0f"|format(opportunity.probability or 0) }}%</span>
+          </header>
+          <h3>{{ opportunity.client_name }}</h3>
+          <p>{{ opportunity.seller_name }}</p>
+          <dl class="ui-kanban-metrics">
+            <div><dt>Proposta</dt><dd class="money-sensitive">{{ money(opportunity.total_sale) }}</dd></div>
+            <div><dt>Overprice</dt><dd class="money-sensitive">{{ money(opportunity.total_overprice) }}</dd></div>
+            <div><dt>Comissão</dt><dd class="money-sensitive">{{ money(opportunity.total_commission) }}</dd></div>
+          </dl>
+          <p class="ui-next-action"><strong>Próximo follow-up:</strong> {{ opportunity.next_followup or 'Não agendado' }}</p>
+          <footer class="ui-kanban-actions">
+            <a class="ui-button ui-button--secondary" href="/opportunities/{{ opportunity.id }}/move/prev" aria-label="Mover {{ opportunity.ro_number }} para a etapa anterior">Voltar</a>
+            <a class="ui-button ui-button--primary" href="/opportunities/{{ opportunity.id }}/move/next" aria-label="Mover {{ opportunity.ro_number }} para a próxima etapa">Avançar</a>
+          </footer>
+        </article>
+        {% else %}
+        <p class="ui-kanban-empty">Nenhuma oportunidade nesta etapa.</p>
+        {% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </section>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}

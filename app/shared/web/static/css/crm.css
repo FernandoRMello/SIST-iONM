@@ -1,0 +1,351 @@
+.ui-crm-stack,
+.ui-crm-section,
+.ui-crm-form-panel,
+.ui-order-form {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.ui-page-header,
+.ui-deal-summary__header,
+.ui-order-card__header,
+.ui-crm-table-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.ui-page-header__copy,
+.ui-page-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.ui-page-header__copy {
+  display: grid;
+}
+
+.ui-page-header__title,
+.ui-page-header__description,
+.ui-page-header__eyebrow,
+.ui-crm-section header h2,
+.ui-crm-section header p,
+.ui-order-card__header h2,
+.ui-order-card__header p {
+  margin: 0;
+}
+
+.ui-page-header__description,
+.ui-crm-section header p,
+.ui-order-card__header p,
+.ui-muted {
+  color: var(--color-text-muted);
+}
+
+.ui-page-header__eyebrow,
+.ui-eyebrow {
+  color: var(--color-teal-800);
+  font-size: var(--font-size-1);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-view-switcher,
+.ui-row-actions,
+.ui-kanban-actions,
+.ui-deal-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ui-crm-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.ui-crm-form__full,
+.ui-crm-form__actions {
+  grid-column: 1 / -1;
+}
+
+.ui-crm-form__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ui-probability {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid currentColor;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-1);
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.ui-probability.prob-red {
+  color: var(--color-error);
+  background: var(--color-error-soft);
+}
+
+.ui-probability.prob-orange,
+.ui-probability.prob-yellow {
+  color: var(--color-warning);
+  background: var(--color-warning-soft);
+}
+
+.ui-probability.prob-green {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.ui-kanban {
+  display: grid;
+  grid-auto-columns: minmax(290px, 1fr);
+  grid-auto-flow: column;
+  gap: var(--space-4);
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+  scroll-snap-type: x proximity;
+}
+
+.ui-kanban-column {
+  min-width: 290px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-subtle);
+  scroll-snap-align: start;
+}
+
+.ui-kanban-column__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ui-kanban-column__header h2 {
+  margin: 0;
+  font-size: var(--font-size-3);
+}
+
+.ui-kanban-column__header span {
+  min-width: 28px;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  text-align: center;
+  font-weight: 700;
+}
+
+.ui-kanban-cards {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.ui-kanban-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.ui-kanban-card header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ui-kanban-card h3,
+.ui-kanban-card p,
+.ui-kanban-metrics,
+.ui-kanban-metrics dd {
+  margin: 0;
+}
+
+.ui-kanban-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.ui-kanban-metrics div,
+.ui-order-metrics div,
+.ui-deal-details div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.ui-kanban-metrics dt,
+.ui-order-metrics dt,
+.ui-deal-details dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-1);
+}
+
+.ui-kanban-metrics dd,
+.ui-order-metrics dd,
+.ui-deal-details dd {
+  font-weight: 700;
+}
+
+.ui-next-action,
+.ui-kanban-empty {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.ui-kanban-empty {
+  text-align: center;
+}
+
+.ui-stat-grid,
+.ui-deal-details,
+.ui-order-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.ui-deal-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ui-stat-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+
+.ui-stat-card__header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-2);
+  font-weight: 700;
+}
+
+.ui-stat-card__value {
+  font-size: var(--font-size-5);
+}
+
+.ui-inline-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.ui-timeline {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.ui-timeline article {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--color-teal-600);
+  background: var(--color-surface-subtle);
+}
+
+.ui-timeline article p,
+.ui-timeline article small {
+  margin: var(--space-1) 0 0;
+}
+
+.ui-order-card {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.ui-order-form fieldset {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.ui-order-form legend {
+  padding-inline: var(--space-2);
+  color: var(--color-navy-900);
+  font-weight: 750;
+}
+
+.ui-empty-state {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8);
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+@media (max-width: 767px) {
+  .ui-page-header,
+  .ui-deal-summary__header,
+  .ui-order-card__header,
+  .ui-crm-table-header {
+    display: grid;
+  }
+
+  .ui-page-header__actions,
+  .ui-view-switcher,
+  .ui-crm-form,
+  .ui-inline-form,
+  .ui-stat-grid,
+  .ui-deal-details,
+  .ui-order-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .ui-page-header__actions,
+  .ui-view-switcher {
+    display: grid;
+  }
+
+  .ui-page-header__actions .ui-button,
+  .ui-view-switcher .ui-button,
+  .ui-kanban-actions .ui-button {
+    width: 100%;
+  }
+}
+
+@media print {
+  .ui-sidebar,
+  .ui-topbar,
+  .bitrix-chat-rail,
+  .bitrix-chat-panel,
+  .ui-page-header__actions {
+    display: none !important;
+  }
+
+  .ui-shell,
+  .ui-main {
+    display: block;
+  }
+
+  .ui-order-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}

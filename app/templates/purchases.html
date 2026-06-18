@@ -1,3 +1,33 @@
-{% extends "base.html" %}{% block title %}Compras{% endblock %}{% block content %}
-<div class="card"><h2>Nova compra</h2><form class="form-grid" method="post" action="/backoffice/purchases/add"><label>Fornecedor<select name="supplier_id">{% for s in suppliers %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label><label>Descrição<input name="description"></label><label>Valor<input name="amount"></label><label>Status<select name="status"><option>Aberto</option><option>Aprovado</option><option>Recebido</option><option>Cancelado</option></select></label><label>Emissão<input name="issue_date"></label><label>Vencimento<input name="due_date"></label><label>Observações<input name="notes"></label><div class="form-actions"><button class="btn">Cadastrar compra</button></div></form></div><div class="card"><h2>Compras</h2><table><thead><tr><th>Fornecedor</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Vencimento</th></tr></thead><tbody>{% for r in rows %}<tr><td>{{ r.supplier_name }}</td><td>{{ r.description }}</td><td>{{ money(r.amount) }}</td><td>{{ r.status }}</td><td>{{ r.due_date }}</td></tr>{% endfor %}</tbody></table></div>
+{% extends "base.html" %}
+{% from "components/macros.html" import empty_state, page_header, status_badge %}
+
+{% block title %}Compras{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/crm.css">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/tables.js" defer></script>{% endblock %}
+
+{% block content %}
+<div class="ui-crm-stack">
+  {{ page_header('Compras', 'Solicitações, aprovações e vencimentos de fornecedores.', 'Operação') }}
+
+  <section class="ui-card ui-crm-section">
+    <header><h2>Nova compra</h2><p>Registre uma despesa prevista com fornecedor.</p></header>
+    <form class="ui-crm-form" method="post" action="/backoffice/purchases/add">
+      <label class="ui-field" for="purchase-supplier"><span class="ui-field__label">Fornecedor</span><select class="ui-field__control" id="purchase-supplier" name="supplier_id" required>{% for supplier in suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }}</option>{% endfor %}</select></label>
+      <label class="ui-field" for="purchase-description"><span class="ui-field__label">Descrição</span><input class="ui-field__control" id="purchase-description" name="description" required></label>
+      <label class="ui-field" for="purchase-amount"><span class="ui-field__label">Valor</span><input class="ui-field__control" id="purchase-amount" name="amount" inputmode="decimal" required></label>
+      <label class="ui-field" for="purchase-status"><span class="ui-field__label">Status</span><select class="ui-field__control" id="purchase-status" name="status"><option>Aberto</option><option>Aprovado</option><option>Recebido</option><option>Cancelado</option></select></label>
+      <label class="ui-field" for="purchase-issue"><span class="ui-field__label">Emissão</span><input class="ui-field__control" id="purchase-issue" name="issue_date" type="date"></label>
+      <label class="ui-field" for="purchase-due"><span class="ui-field__label">Vencimento</span><input class="ui-field__control" id="purchase-due" name="due_date" type="date"></label>
+      <label class="ui-field ui-crm-form__full" for="purchase-notes"><span class="ui-field__label">Observações</span><textarea class="ui-field__control" id="purchase-notes" name="notes" rows="3"></textarea></label>
+      <div class="ui-crm-form__actions"><button class="ui-button ui-button--primary" type="submit">Cadastrar compra</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-crm-section">
+    <header class="ui-crm-table-header"><div><h2>Compras</h2><p>{{ rows|length }} registro(s)</p></div><label class="ui-field" for="purchase-search"><span class="ui-field__label">Buscar compras</span><input class="ui-field__control" id="purchase-search" type="search" data-table-search="purchases-table" autocomplete="off"></label></header>
+    {% if rows %}
+    <div class="ui-table-wrapper"><table class="ui-table" id="purchases-table" data-table><thead><tr><th>Fornecedor</th><th>Descrição</th><th>Valor</th><th>Status</th><th>Emissão</th><th>Vencimento</th></tr></thead><tbody>{% for purchase in rows %}<tr><td>{{ purchase.supplier_name }}</td><td>{{ purchase.description }}</td><td class="money-sensitive">{{ money(purchase.amount) }}</td><td>{{ status_badge(purchase.status, 'neutral') }}</td><td>{{ purchase.issue_date or '-' }}</td><td>{{ purchase.due_date or '-' }}</td></tr>{% endfor %}</tbody></table></div><p data-table-no-results="purchases-table" hidden></p>
+    {% else %}{{ empty_state('Nenhuma compra', 'Cadastre a primeira solicitação no formulário acima.', 'purchases') }}{% endif %}
+  </section>
+</div>
 {% endblock %}

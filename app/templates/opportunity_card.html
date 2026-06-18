@@ -1,74 +1,132 @@
-{% extends "base.html" %}{% block title %}Card {{ o.ro_number }}{% endblock %}{% block content %}
-<div class="deal-header"><div><h2>{{ o.ro_number }} — {{ o.client_name }}</h2><p>{{ o.supplier_name }} · {{ o.seller_name }} · <span class="pill">{{ o.status }}</span> · <span class="prob-badge {{ prob_class(o.probability) }}">{{ "%.0f"|format(o.probability or 0) }}%</span></p></div><div><a class="btn ghost" href="/opportunities">Voltar</a><a class="btn" href="/opportunities/{{ o.id }}/proposal-pdf">Proposta PDF</a><a class="btn ghost" href="/opportunities/{{ o.id }}/ro-supplier-pdf">R.O Fornecedor</a></div></div>
-<div class="deal-tabs"><a class="active">Geral</a><a>Produtos</a><a>Comentários</a><a>Anotações</a><a>Documentos</a></div>
-<div class="grid2">
-  <div class="card">
-    <h2>Sobre o negócio</h2>
-    <p><b>Valor proposta:</b> <span class="money-sensitive">{{ money(o.total_sale) }}</span></p>
-    <p><b>Overprice:</b> <span class="money-sensitive">{{ money(o.total_overprice) }}</span></p>
-    <p><b>Comissão:</b> <span class="money-sensitive">{{ money(o.total_commission) }}</span></p>
-    <p><b>Pagamento desejado:</b> {{ o.payment_terms or '-' }}</p>
-    <p><b>Observações:</b> {{ o.notes or '-' }}</p>
-  </div>
+{% extends "base.html" %}
+{% from "components/macros.html" import empty_state, page_header, stat_card, status_badge %}
 
-  <div class="card">
-    <div class="section-head">
-      <div>
-        <h2>Produtos do card</h2>
-        <p>Adicione produtos diretamente nesta oportunidade.</p>
+{% block title %}Card {{ o.ro_number }}{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/crm.css">
+{% endblock %}
+
+{% block content %}
+<div class="ui-crm-stack">
+  {% call page_header(
+    o.ro_number ~ ' — ' ~ o.client_name,
+    o.supplier_name ~ ' · ' ~ o.seller_name,
+    'Oportunidade'
+  ) %}
+  <a class="ui-button ui-button--secondary" href="/opportunities">Voltar</a>
+  <a class="ui-button ui-button--secondary" href="/opportunities/{{ o.id }}/proposal-pdf">Proposta PDF</a>
+  <a class="ui-button ui-button--secondary" href="/opportunities/{{ o.id }}/ro-supplier-pdf">R.O Fornecedor</a>
+  <a class="ui-button ui-button--primary" href="/opportunities/{{ o.id }}/make-order">Gerar pedido</a>
+  {% endcall %}
+
+  <section class="ui-card ui-crm-section" id="summary">
+    <header class="ui-deal-summary__header">
+      <div><h2>Sobre o negócio</h2><p>Resumo executivo da oportunidade.</p></div>
+      <div class="ui-deal-status">
+        {{ status_badge(o.status, 'neutral') }}
+        <span class="ui-probability {{ prob_class(o.probability) }}">Probabilidade: {{ "%.0f"|format(o.probability or 0) }}%</span>
       </div>
+    </header>
+    <div class="ui-stat-grid ui-stat-grid--three">
+      {{ stat_card('Valor da proposta', money(o.total_sale), 'money', 'neutral', sensitive=true) }}
+      {{ stat_card('Overprice', money(o.total_overprice), 'finance', 'success', sensitive=true) }}
+      {{ stat_card('Comissão', money(o.total_commission), 'sellers', 'neutral', sensitive=true) }}
     </div>
+    <dl class="ui-deal-details">
+      <div><dt>Pagamento desejado</dt><dd>{{ o.payment_terms or 'Não informado' }}</dd></div>
+      <div><dt>Próximo follow-up</dt><dd>{{ o.next_followup or 'Não agendado' }}</dd></div>
+      <div><dt>Previsão de fechamento</dt><dd>{{ o.forecast_date or 'Não informada' }}</dd></div>
+      <div><dt>Observações</dt><dd>{{ o.notes or 'Sem observações' }}</dd></div>
+    </dl>
+  </section>
 
-    <form method="post" action="/opportunities/{{ o.id }}/add-item" class="form-grid card-product-form">
-      <label>Produto
-        <select name="product_id" required>
-          {% for p in products %}
-          <option value="{{ p.id }}">
-            {{ p.name }} — padrão {{ money(p.ionm_price) }}
-          </option>
+  <section class="ui-card ui-crm-section" id="products">
+    <header><h2>Produtos do card</h2><p>Composição comercial e margem desta oportunidade.</p></header>
+    <form class="ui-crm-form" method="post" action="/opportunities/{{ o.id }}/add-item">
+      <label class="ui-field" for="card-product">
+        <span class="ui-field__label">Produto</span>
+        <select class="ui-field__control" id="card-product" name="product_id" required>
+          {% for product in products %}
+          <option value="{{ product.id }}">{{ product.name }} — padrão {{ money(product.ionm_price) }}</option>
           {% endfor %}
         </select>
       </label>
-      <label>Quantidade
-        <input name="quantity" value="1">
+      <label class="ui-field" for="card-quantity">
+        <span class="ui-field__label">Quantidade</span>
+        <input class="ui-field__control" id="card-quantity" name="quantity" type="number" min="0.01" step="0.01" value="1" required>
       </label>
-      <label>Preço de venda unitário
-        <input name="sale_unit_price" placeholder="Deixe em branco para preço padrão">
+      <label class="ui-field" for="card-sale-price">
+        <span class="ui-field__label">Preço de venda unitário</span>
+        <input class="ui-field__control" id="card-sale-price" name="sale_unit_price" inputmode="decimal" placeholder="Preço padrão">
       </label>
-      <label>% Comissão vendedor
-        <input name="seller_commission_rate" placeholder="Padrão do vendedor">
+      <label class="ui-field" for="card-commission">
+        <span class="ui-field__label">% Comissão do vendedor</span>
+        <input class="ui-field__control" id="card-commission" name="seller_commission_rate" type="number" min="0" max="100" step="0.01" placeholder="Padrão do vendedor">
       </label>
-      <div class="form-actions">
-        <button class="btn">Adicionar produto</button>
-      </div>
+      <div class="ui-crm-form__actions"><button class="ui-button ui-button--primary" type="submit">Adicionar produto</button></div>
     </form>
 
-    <table>
-      <thead>
-        <tr>
-          <th>Produto</th>
-          <th>Qtd</th>
-          <th>Fornecedor</th>
-          <th>Venda</th>
-          <th>Overprice</th>
-          <th>Comissão</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for it in o['items'] %}
-        <tr>
-          <td>{{ it.product_name }}</td>
-          <td>{{ it.quantity }}</td>
-          <td>{{ money(it.supplier_total) }}</td>
-          <td>{{ money(it.sale_total) }}</td>
-          <td>{{ money(it.overprice) }}</td>
-          <td>{{ money(it.commission) }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+    {% if o['items'] %}
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Produto</th><th>Qtd.</th><th>Fornecedor</th><th>Venda</th><th>Overprice</th><th>Comissão</th></tr></thead>
+        <tbody>
+          {% for item in o['items'] %}
+          <tr>
+            <td>{{ item.product_name }}</td><td>{{ item.quantity }}</td>
+            <td class="money-sensitive">{{ money(item.supplier_total) }}</td>
+            <td class="money-sensitive">{{ money(item.sale_total) }}</td>
+            <td class="money-sensitive">{{ money(item.overprice) }}</td>
+            <td class="money-sensitive">{{ money(item.commission) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {{ empty_state('Nenhum produto', 'Adicione o primeiro item à oportunidade.', 'products') }}
+    {% endif %}
+  </section>
+
+  <section class="ui-card ui-crm-section" id="communication">
+    <header><h2>Comunicação</h2><p>Comentários compartilhados com a equipe.</p></header>
+    {% if comments %}
+    <div class="ui-timeline">
+      {% for comment in comments %}
+      <article><strong>{{ comment.full_name or comment.username }}</strong><p>{{ comment.content }}</p><small>{{ comment.created_at }}</small></article>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="ui-muted">Nenhum comentário registrado.</p>
+    {% endif %}
+    <form class="ui-inline-form" method="post" action="/opportunities/{{ o.id }}/comment">
+      <label class="ui-field" for="card-comment"><span class="ui-field__label">Novo comentário</span><input class="ui-field__control" id="card-comment" name="content" required></label>
+      <button class="ui-button ui-button--primary" type="submit">Comentar</button>
+    </form>
+  </section>
+
+  <section class="ui-card ui-crm-section" id="documents">
+    <header><h2>Documentos do card</h2><p>Propostas, notas fiscais e comprovantes da negociação.</p></header>
+    <form class="ui-crm-form" method="post" action="/opportunities/{{ o.id }}/document" enctype="multipart/form-data">
+      <label class="ui-field" for="document-title"><span class="ui-field__label">Nome do documento</span><input class="ui-field__control" id="document-title" name="title" required></label>
+      <label class="ui-field" for="document-type"><span class="ui-field__label">Tipo</span><select class="ui-field__control" id="document-type" name="doc_type"><option>Proposta Comercial</option><option>R.O Fornecedor</option><option>Orçamento</option><option>NF</option><option>Comprovante</option><option>Outro</option></select></label>
+      <label class="ui-field" for="document-file"><span class="ui-field__label">Arquivo</span><input class="ui-field__control" id="document-file" type="file" name="file" required></label>
+      <div class="ui-crm-form__actions"><button class="ui-button ui-button--primary" type="submit">Anexar</button></div>
+    </form>
+    {% if docs %}
+    <div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Documento</th><th>Tipo</th><th>Usuário</th><th>Data</th><th>Arquivo</th></tr></thead><tbody>{% for document in docs %}<tr><td>{{ document.title }}</td><td>{{ document.doc_type }}</td><td>{{ document.username }}</td><td>{{ document.created_at }}</td><td>{% if document.file_path %}<a href="/{{ document.file_path }}" target="_blank" rel="noopener">Abrir</a>{% else %}Sem arquivo{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+    {% else %}<p class="ui-muted">Nenhum documento anexado.</p>{% endif %}
+  </section>
+
+  <section class="ui-card ui-crm-section" id="history">
+    <header><h2>Histórico e anotações</h2><p>Registros internos para acompanhamento da R.O.</p></header>
+    {% if notes %}<div class="ui-timeline">{% for note in notes %}<article><strong>{{ note.title }}</strong><p>{{ note.content }}</p><small>{{ note.username }} · {{ note.created_at }}</small></article>{% endfor %}</div>{% else %}<p class="ui-muted">Nenhuma anotação registrada.</p>{% endif %}
+    <form class="ui-crm-form" method="post" action="/opportunities/{{ o.id }}/note">
+      <label class="ui-field" for="note-title"><span class="ui-field__label">Título</span><input class="ui-field__control" id="note-title" name="title" required></label>
+      <label class="ui-field" for="note-content"><span class="ui-field__label">Anotação</span><textarea class="ui-field__control" id="note-content" name="content" rows="3" required></textarea></label>
+      <div class="ui-crm-form__actions"><button class="ui-button ui-button--primary" type="submit">Salvar anotação</button></div>
+    </form>
+  </section>
 </div>
-<div class="grid2"><div class="card"><h2>Comentários</h2>{% for c in comments %}<p><b>{{ c.full_name or c.username }}:</b> {{ c.content }} <small>{{ c.created_at }}</small></p>{% endfor %}<form method="post" action="/opportunities/{{ o.id }}/comment" class="inline-form"><input name="content" placeholder="Comentar no card..."><button class="btn">Comentar</button></form></div><div class="card"><h2>Anotações</h2>{% for n in notes %}<p><b>{{ n.title }}</b><br>{{ n.content }}</p>{% endfor %}<form method="post" action="/opportunities/{{ o.id }}/note" class="form-grid"><label>Título<input name="title"></label><label>Anotação<input name="content"></label><div class="form-actions"><button class="btn">Salvar anotação</button></div></form></div></div>
-<div class="card"><h2>Documentos do card</h2><form method="post" action="/opportunities/{{ o.id }}/document" enctype="multipart/form-data" class="inline-form"><input name="title" placeholder="Nome do documento"><select name="doc_type"><option>Proposta Comercial</option><option>R.O Fornecedor</option><option>Orçamento</option><option>NF</option><option>Comprovante</option><option>Outro</option></select><input type="file" name="file"><button class="btn">Anexar</button></form><table><thead><tr><th>Documento</th><th>Tipo</th><th>Usuário</th><th>Data</th><th>Arquivo</th></tr></thead><tbody>{% for d in docs %}<tr><td>{{ d.title }}</td><td>{{ d.doc_type }}</td><td>{{ d.username }}</td><td>{{ d.created_at }}</td><td>{% if d.file_path %}<a href="/{{ d.file_path }}" target="_blank">Abrir</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>
 {% endblock %}

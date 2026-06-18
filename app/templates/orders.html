@@ -1,33 +1,67 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import empty_state, icon, page_header, status_badge %}
+
 {% block title %}Pedidos / Fechamento{% endblock %}
+
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/crm.css">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/feedback.js" defer></script>{% endblock %}
+
 {% block content %}
-<div class="print-toolbar">
-  <button class="btn" onclick="window.print()">Imprimir relatório de pedidos</button>
-  <button class="btn ghost" type="button" onclick="document.body.classList.toggle('hide-money')">Ocultar/mostrar valores</button>
+<div class="ui-crm-stack">
+  {% call page_header(
+    'Pedidos / Fechamento',
+    'Controle documentos fiscais, recebimentos e conclusão dos pedidos.',
+    'Operação'
+  ) %}
+  <button class="ui-button ui-button--secondary" type="button" data-action="toggle-money">{{ icon('eye', 16) }} Ocultar valores</button>
+  <button class="ui-button ui-button--primary" type="button" data-action="print">Imprimir relatório</button>
+  {% endcall %}
+
+  {% if orders %}
+  {% for order in orders %}
+  <article class="ui-card ui-order-card">
+    <header class="ui-order-card__header">
+      <div>
+        <p class="ui-eyebrow">{{ order.order_number }}</p>
+        <h2>{{ order.opp.client_name }}</h2>
+        <p>{{ order.opp.supplier_name }} · {{ order.opp.seller_name }}</p>
+      </div>
+      {{ status_badge(order.status, 'neutral') }}
+    </header>
+
+    <dl class="ui-order-metrics">
+      <div><dt>Overprice</dt><dd class="money-sensitive">{{ money(order.opp.total_overprice) }}</dd></div>
+      <div><dt>Custos</dt><dd class="money-sensitive">{{ money(order.costs_total) }}</dd></div>
+    </dl>
+
+    <form class="ui-order-form" method="post" action="/orders/{{ order.id }}/closing">
+      <fieldset>
+        <legend>Status fiscal</legend>
+        <div class="ui-crm-form">
+          <label class="ui-field" for="supplier-invoice-{{ order.id }}"><span class="ui-field__label">NF fornecedor</span><input class="ui-field__control" id="supplier-invoice-{{ order.id }}" name="supplier_invoice" value="{{ order.closing.supplier_invoice if order.closing else '' }}"></label>
+          <label class="ui-field" for="ionm-invoice-{{ order.id }}"><span class="ui-field__label">NF iONM / cobrança</span><input class="ui-field__control" id="ionm-invoice-{{ order.id }}" name="ionm_invoice" value="{{ order.closing.ionm_invoice if order.closing else '' }}"></label>
+          <label class="ui-field" for="supplier-invoice-date-{{ order.id }}"><span class="ui-field__label">Data NF fornecedor</span><input class="ui-field__control" id="supplier-invoice-date-{{ order.id }}" name="supplier_invoice_date" type="date" value="{{ order.closing.supplier_invoice_date if order.closing else '' }}"></label>
+          <label class="ui-field" for="ionm-invoice-date-{{ order.id }}"><span class="ui-field__label">Data NF iONM</span><input class="ui-field__control" id="ionm-invoice-date-{{ order.id }}" name="ionm_invoice_date" type="date" value="{{ order.closing.ionm_invoice_date if order.closing else '' }}"></label>
+          <label class="ui-field" for="fiscal-status-{{ order.id }}"><span class="ui-field__label">Status fiscal</span><select class="ui-field__control" id="fiscal-status-{{ order.id }}" name="fiscal_status">{% for status in status_fiscal %}<option {% if order.closing and order.closing.fiscal_status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Status financeiro</legend>
+        <div class="ui-crm-form">
+          <label class="ui-field" for="expected-receipt-{{ order.id }}"><span class="ui-field__label">Previsão de recebimento</span><input class="ui-field__control" id="expected-receipt-{{ order.id }}" name="expected_receipt_date" type="date" value="{{ order.closing.expected_receipt_date if order.closing else '' }}"></label>
+          <label class="ui-field" for="receipt-date-{{ order.id }}"><span class="ui-field__label">Data de recebimento</span><input class="ui-field__control" id="receipt-date-{{ order.id }}" name="receipt_date" type="date" value="{{ order.closing.receipt_date if order.closing else '' }}"></label>
+          <label class="ui-field" for="financial-status-{{ order.id }}"><span class="ui-field__label">Status financeiro</span><select class="ui-field__control" id="financial-status-{{ order.id }}" name="financial_status">{% for status in status_finance %}<option {% if order.closing and order.closing.financial_status == status %}selected{% endif %}>{{ status }}</option>{% endfor %}</select></label>
+          <label class="ui-field" for="received-amount-{{ order.id }}"><span class="ui-field__label">Valor recebido</span><input class="ui-field__control" id="received-amount-{{ order.id }}" name="received_amount" inputmode="decimal" value="{{ order.closing.received_amount if order.closing else '' }}"></label>
+          <label class="ui-field ui-crm-form__full" for="closing-notes-{{ order.id }}"><span class="ui-field__label">Observações</span><textarea class="ui-field__control" id="closing-notes-{{ order.id }}" name="notes" rows="3">{{ order.closing.notes if order.closing else '' }}</textarea></label>
+        </div>
+      </fieldset>
+      <div class="ui-crm-form__actions"><button class="ui-button ui-button--primary" type="submit">Salvar fechamento</button></div>
+    </form>
+  </article>
+  {% endfor %}
+  {% else %}
+  {{ empty_state('Nenhum pedido', 'Pedidos gerados a partir das oportunidades aparecerão aqui.', 'orders') }}
+  {% endif %}
 </div>
-{% for o in orders %}
-<div class="card">
-  <div class="section-head">
-    <div>
-      <h2>{{ o.order_number }} — {{ o.opp.client_name }}</h2>
-      <p>{{ o.opp.supplier_name }} · {{ o.opp.seller_name }} · Overprice {{ money(o.opp.total_overprice) }} · Custos {{ money(o.costs_total) }}</p>
-    </div>
-    <span class="pill">{{ o.status }}</span>
-  </div>
-  <form class="form-grid" method="post" action="/orders/{{ o.id }}/closing">
-    <label>NF fornecedor<input name="supplier_invoice" value="{{ o.closing.supplier_invoice if o.closing else '' }}"></label>
-    <label>NF iONM / cobrança<input name="ionm_invoice" value="{{ o.closing.ionm_invoice if o.closing else '' }}"></label>
-    <label>Data NF fornecedor<input name="supplier_invoice_date" value="{{ o.closing.supplier_invoice_date if o.closing else '' }}"></label>
-    <label>Data NF iONM<input name="ionm_invoice_date" value="{{ o.closing.ionm_invoice_date if o.closing else '' }}"></label>
-    <label>Previsão recebimento<input name="expected_receipt_date" value="{{ o.closing.expected_receipt_date if o.closing else '' }}"></label>
-    <label>Data recebimento<input name="receipt_date" value="{{ o.closing.receipt_date if o.closing else '' }}"></label>
-    <label>Status fiscal<select name="fiscal_status">{% for s in status_fiscal %}<option {% if o.closing and o.closing.fiscal_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-    <label>Status financeiro<select name="financial_status">{% for s in status_finance %}<option {% if o.closing and o.closing.financial_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
-    <label>Valor recebido<input name="received_amount" value="{{ o.closing.received_amount if o.closing else '' }}"></label>
-    <label>Observações<input name="notes" value="{{ o.closing.notes if o.closing else '' }}"></label>
-    <div class="form-actions"><button class="btn">Salvar fechamento</button></div>
-  </form>
-</div>
-{% endfor %}
 {% endblock %}

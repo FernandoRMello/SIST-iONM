@@ -19,11 +19,14 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from jinja2 import ChoiceLoader, FileSystemLoader
 from starlette.middleware.sessions import SessionMiddleware
 
 APP_NAME = "SIST-iONM"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
+LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
+SHARED_TEMPLATE_DIR = BASE_DIR / "app" / "shared" / "web" / "templates"
 DATA_DIR = BASE_DIR / "data"
 PDF_DIR = BASE_DIR / "exports" / "pdf"
 XML_DIR = BASE_DIR / "exports" / "xml"
@@ -38,7 +41,10 @@ app.add_middleware(SessionMiddleware, secret_key="sist-ionm-local-session-key")
 app.mount("/assets", StaticFiles(directory=SHARED_STATIC_DIR), name="assets")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "app" / "static"), name="static")
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
-templates = Jinja2Templates(directory=BASE_DIR / "app" / "templates")
+templates = Jinja2Templates(directory=LEGACY_TEMPLATE_DIR)
+templates.env.loader = ChoiceLoader(
+    [FileSystemLoader(LEGACY_TEMPLATE_DIR), FileSystemLoader(SHARED_TEMPLATE_DIR)]
+)
 
 class ChatConnectionManager:
     def __init__(self):

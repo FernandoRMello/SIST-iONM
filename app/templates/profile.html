@@ -1,21 +1,101 @@
-{% extends "base.html" %}{% block title %}Meu Perfil{% endblock %}{% block content %}
-<div class="card profile-avatar-card">
-  <div class="profile-avatar">
-    {% if profile and profile.avatar_path %}
-      <img src="/{{ profile.avatar_path }}" alt="Foto do perfil">
-    {% else %}
-      <div class="avatar avatar-large">{{ (profile.full_name or profile.username or '?')[:1] }}</div>
-    {% endif %}
-  </div>
-  <div>
-    <h2>Foto do perfil</h2>
-    <p class="muted">Essa imagem aparece no chat e nos registros internos.</p>
-    <form method="post" action="/profile/avatar" enctype="multipart/form-data" class="inline-form">
-      <input type="file" name="avatar" accept="image/*">
-      <button class="btn">Atualizar foto</button>
-    </form>
-  </div>
-</div>
+{% extends "base.html" %}
+{% from "components/macros.html" import form_field, page_header %}
 
-<div class="card"><h2>Perfil do usuário</h2><form class="form-grid" method="post" action="/profile/save"><label>Nome completo<input name="full_name" value="{{ profile.full_name if profile else '' }}"></label><label>E-mail para orçamento<input name="email" value="{{ profile.email if profile else '' }}"></label><label>Telefone<input name="phone" value="{{ profile.phone if profile else '' }}"></label><label>Cargo<input name="role_title" value="{{ profile.role_title if profile else '' }}"></label><label>Departamento<select name="department_id"><option value="">Sem departamento</option>{% for d in departments %}<option value="{{ d.id }}" {% if profile and profile.department_id==d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></label><label>Bio<input name="bio" value="{{ profile.bio if profile else '' }}"></label><div class="form-actions"><button class="btn">Salvar perfil</button></div></form></div>
+{% block title %}Meu Perfil{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/portal.css">
+{% endblock %}
+
+{% block content %}
+<div class="ui-section">
+  {{ page_header(
+    'Perfil do usuário',
+    'Atualize sua identidade, contato e preferências.',
+    'Conta'
+  ) }}
+
+  <section class="ui-card ui-profile-identity">
+    <div>
+      {% if profile and profile.avatar_path %}
+      <img class="ui-profile-photo" src="/{{ profile.avatar_path }}" alt="Foto do perfil">
+      {% else %}
+      <span class="ui-avatar ui-avatar--large">
+        {{ ((profile.full_name or profile.username) if profile else '?')[:1] }}
+      </span>
+      {% endif %}
+    </div>
+
+    <div>
+      <h2>Foto do perfil</h2>
+      <p>Ela aparece no chat e nos registros internos.</p>
+      <form method="post" action="/profile/avatar" enctype="multipart/form-data">
+        <label class="ui-field" for="avatar">
+          <span class="ui-field__label">Escolher imagem</span>
+          <input
+            class="ui-field__control"
+            id="avatar"
+            type="file"
+            name="avatar"
+            accept="image/*"
+            required
+          >
+        </label>
+        <button class="ui-button ui-button--secondary" type="submit">
+          Atualizar foto
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <section class="ui-card">
+    <h2>Perfil do usuário</h2>
+    <form class="ui-form-grid" method="post" action="/profile/save">
+      {{ form_field(
+        'full_name',
+        'Nome completo',
+        profile.full_name if profile else '',
+        autocomplete='name'
+      ) }}
+      {{ form_field(
+        'email',
+        'E-mail para orçamento',
+        profile.email if profile else '',
+        field_type='email',
+        autocomplete='email'
+      ) }}
+      {{ form_field(
+        'phone',
+        'Telefone',
+        profile.phone if profile else '',
+        field_type='tel',
+        autocomplete='tel'
+      ) }}
+      {{ form_field(
+        'role_title',
+        'Cargo',
+        profile.role_title if profile else '',
+        autocomplete='organization-title'
+      ) }}
+      {{ form_field('bio', 'Bio', profile.bio if profile else '') }}
+
+      <label class="ui-field" for="department_id">
+        <span class="ui-field__label">Departamento</span>
+        <select class="ui-field__control" id="department_id" name="department_id">
+          <option value="">Sem departamento</option>
+          {% for department in departments %}
+          <option
+            value="{{ department.id }}"
+            {% if profile and profile.department_id == department.id %}selected{% endif %}
+          >{{ department.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <div>
+        <button class="ui-button ui-button--primary" type="submit">Salvar perfil</button>
+      </div>
+    </form>
+  </section>
+</div>
 {% endblock %}

@@ -1,55 +1,91 @@
-
 {% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
 {% block title %}Chat{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/portal.css">
+{% endblock %}
+
 {% block content %}
-<div class="chat-layout realtime-chat-page">
-  <div class="card chat-rooms">
-    <h2>Conversas</h2>
-    {% for r in rooms %}
-      <a class="chat-room" href="/chat?room_id={{ r.id }}">{{ "# " if r.room_type == "general" else "" }}{{ r.name }}</a>
-    {% endfor %}
-    <h3>Usuários</h3>
-    {% for u in users %}
-      <a class="chat-user-start" href="/chat/private/{{ u.id }}">
-        {% if u.avatar_path %}<img src="/{{ u.avatar_path }}">{% else %}<span>{{ (u.full_name or u.username or '?')[:1] }}</span>{% endif %}
-        {{ u.full_name or u.username }}
+<div class="ui-section">
+  {{ page_header(
+    'Chat em tempo real',
+    'Converse com toda a equipe ou em salas privadas.',
+    'Comunicação'
+  ) }}
+
+  <p class="ui-chat-status" id="chatConnectionStatus" aria-live="polite">
+    Conectando…
+  </p>
+
+  <div class="ui-chat-layout realtime-chat-page">
+    <aside class="ui-card ui-chat-rooms">
+      <h2>Conversas</h2>
+      <nav aria-label="Salas">
+        {% for room in rooms %}
+        <a
+          class="ui-chat-room{% if room.id == room_id %} is-active{% endif %}"
+          href="/chat?room_id={{ room.id }}"
+          {% if room.id == room_id %}aria-current="page"{% endif %}
+        >
+          {{ room.name }}
+        </a>
+        {% endfor %}
+      </nav>
+
+      <h3>Usuários</h3>
+      {% for chat_user in users %}
+      <a class="ui-chat-user" href="/chat/private/{{ chat_user.id }}">
+        {% if chat_user.avatar_path %}
+        <img src="/{{ chat_user.avatar_path }}" alt="">
+        {% else %}
+        <span class="ui-avatar">
+          {{ (chat_user.full_name or chat_user.username or '?')[:1] }}
+        </span>
+        {% endif %}
+        <span>{{ chat_user.full_name or chat_user.username }}</span>
       </a>
-    {% endfor %}
-  </div>
-
-  <div class="card chat-window" data-room-id="{{ room_id }}">
-    <div class="chat-page-head">
-      <h2>Chat em tempo real</h2>
-      <p>Sala selecionada: {{ room_id }}</p>
-    </div>
-
-    <div class="messages realtime-messages" id="fullChatMessages">
-      {% for m in messages %}
-      <div class="msg {% if m.user_id == user.id %}mine{% else %}other{% endif %}">
-        <div class="msg-author">
-          {% if m.avatar_path %}<img src="/{{ m.avatar_path }}">{% else %}<span>{{ (m.full_name or m.username or '?')[:1] }}</span>{% endif %}
-          <strong>{{ m.full_name or m.username }}</strong>
-        </div>
-        <p>{{ m.content }}</p>
-        {% if m.attachment_path %}<a href="/{{ m.attachment_path }}" target="_blank">Anexo</a>{% endif %}
-        <small>{{ m.created_at }}</small>
-      </div>
       {% endfor %}
-    </div>
+    </aside>
 
-    <form class="chat-form realtime-full-form" id="fullChatForm">
-      <input type="hidden" id="fullChatRoomId" value="{{ room_id }}">
-      <input id="fullChatInput" name="content" placeholder="Digite sua mensagem...">
-      <button class="btn" type="submit">Enviar</button>
-    </form>
+    <section class="ui-card ui-chat-window" data-room-id="{{ room_id }}">
+      <header>
+        <h2>Conversas</h2>
+        <p>Sala {{ room_id }}</p>
+      </header>
+
+      <div class="ui-chat-messages" id="fullChatMessages" aria-live="polite">
+        {% for message in messages %}
+        <article class="ui-message{% if message.user_id == user.id %} is-mine{% endif %}">
+          <strong>{{ message.full_name or message.username }}</strong>
+          <p>{{ message.content }}</p>
+          {% if message.attachment_path %}
+          <a
+            class="ui-message__attachment"
+            href="/{{ message.attachment_path }}"
+            target="_blank"
+            rel="noopener"
+          >Abrir anexo</a>
+          {% endif %}
+          <small>{{ message.created_at }}</small>
+        </article>
+        {% endfor %}
+      </div>
+
+      <form class="ui-chat-form" id="fullChatForm">
+        <input type="hidden" id="fullChatRoomId" value="{{ room_id }}">
+        <label class="ui-visually-hidden" for="fullChatInput">Mensagem</label>
+        <input
+          class="ui-field__control"
+          id="fullChatInput"
+          name="content"
+          placeholder="Digite sua mensagem"
+          autocomplete="off"
+        >
+        <button class="ui-button ui-button--primary" type="submit">Enviar</button>
+      </form>
+    </section>
   </div>
 </div>
-
-<script>
-window.addEventListener("DOMContentLoaded", function(){
-  if (window.SistIonmChat) {
-    SistIonmChat.connectFullChat({{ room_id }});
-  }
-});
-</script>
 {% endblock %}

@@ -1,5 +1,113 @@
-{% extends "base.html" %}{% block title %}Feed{% endblock %}{% block content %}
-<div class="portal-hero"><h2>Feed da equipe</h2><p>Publique avisos, imagens, anexos e atualizações internas.</p></div>
-<div class="card feed-compose"><form method="post" action="/feed/post" enctype="multipart/form-data"><textarea name="content" placeholder="Compartilhe uma atualização..."></textarea><div class="feed-actions"><input type="file" name="attachment"><button class="btn">Publicar</button></div></form></div>
-{% for p in posts %}<div class="card feed-post"><div class="feed-author"><div class="avatar">{{ (p.full_name or p.username or '?')[:1] }}</div><div><strong>{{ p.full_name or p.username }}</strong><p>{{ p.created_at }}</p></div></div><div class="feed-content">{{ p.content }}</div>{% if p.attachment_path %}<a class="attachment" href="/{{ p.attachment_path }}" target="_blank">Abrir anexo</a>{% endif %}<div class="feed-tools"><a href="/feed/like/{{ p.id }}">Curtir · {{ p.likes_count }}</a></div><div class="feed-comments">{% for c in comments_by_post.get(p.id, []) %}<p><b>{{ c.full_name or c.username }}:</b> {{ c.content }}</p>{% endfor %}<form method="post" action="/feed/comment/{{ p.id }}" class="inline-form"><input name="content" placeholder="Comentar..."><button class="btn ghost">Enviar</button></form></div></div>{% endfor %}
+{% extends "base.html" %}
+{% from "components/macros.html" import empty_state, icon, page_header %}
+
+{% block title %}Feed{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/portal.css">
+{% endblock %}
+
+{% block content %}
+<div class="ui-section">
+  {{ page_header(
+    'Feed da equipe',
+    'Avisos, imagens e atualizações internas.',
+    'Portal'
+  ) }}
+
+  <section class="ui-card">
+    <form
+      class="ui-feed-composer"
+      method="post"
+      action="/feed/post"
+      enctype="multipart/form-data"
+    >
+      <label class="ui-field" for="feed-content">
+        <span class="ui-field__label">Compartilhe uma atualização</span>
+        <textarea
+          class="ui-field__control"
+          id="feed-content"
+          name="content"
+          rows="3"
+          required
+        ></textarea>
+      </label>
+
+      <div class="ui-feed-actions">
+        <label class="ui-button ui-button--secondary" for="feed-attachment">
+          {{ icon('plus', 16) }} Adicionar anexo
+        </label>
+        <input
+          class="ui-visually-hidden"
+          id="feed-attachment"
+          type="file"
+          name="attachment"
+        >
+        <button class="ui-button ui-button--primary" type="submit">Publicar</button>
+      </div>
+    </form>
+  </section>
+
+  {% if posts %}
+  <section class="ui-feed-list" aria-label="Publicações">
+    {% for post in posts %}
+    <article class="ui-card ui-feed-post">
+      <header class="ui-feed-author">
+        <span class="ui-avatar">
+          {{ (post.full_name or post.username or '?')[:1] }}
+        </span>
+        <div>
+          <strong>{{ post.full_name or post.username }}</strong>
+          <small>{{ post.created_at }}</small>
+        </div>
+      </header>
+
+      <p class="ui-feed-content">{{ post.content }}</p>
+
+      {% if post.attachment_path %}
+      <a
+        class="ui-button ui-button--secondary"
+        href="/{{ post.attachment_path }}"
+        target="_blank"
+        rel="noopener"
+      >Abrir anexo</a>
+      {% endif %}
+
+      <div class="ui-feed-tools">
+        <a href="/feed/like/{{ post.id }}">Curtir · {{ post.likes_count }}</a>
+      </div>
+
+      <div class="ui-feed-comments">
+        {% for comment in comments_by_post.get(post.id, []) %}
+        <p>
+          <strong>{{ comment.full_name or comment.username }}:</strong>
+          {{ comment.content }}
+        </p>
+        {% endfor %}
+
+        <form method="post" action="/feed/comment/{{ post.id }}">
+          <label class="ui-visually-hidden" for="comment-{{ post.id }}">Comentar</label>
+          <div class="ui-inline-control">
+            <input
+              class="ui-field__control"
+              id="comment-{{ post.id }}"
+              name="content"
+              placeholder="Escreva um comentário"
+              required
+            >
+            <button class="ui-button ui-button--secondary" type="submit">Enviar</button>
+          </div>
+        </form>
+      </div>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  {{ empty_state(
+    'O feed está vazio',
+    'Publique a primeira atualização da equipe.',
+    'feed'
+  ) }}
+  {% endif %}
+</div>
 {% endblock %}

@@ -1,4 +1,67 @@
-{% extends "base.html" %}{% block title %}Organograma{% endblock %}{% block content %}
-<div class="card"><h2>Organograma</h2><div class="org-grid">{% for d in departments %}<div class="org-card"><strong>{{ d.name }}</strong><p>Gestor: {{ d.manager_username or '-' }}</p><small>Departamento superior: {{ d.parent_id or '-' }}</small></div>{% endfor %}</div></div>
-<div class="card"><h2>Pessoas</h2><table><thead><tr><th>Nome</th><th>Usuário</th><th>Cargo</th><th>Departamento</th><th>E-mail</th></tr></thead><tbody>{% for p in people %}<tr><td>{{ p.full_name }}</td><td>{{ p.username }}</td><td>{{ p.role_title }}</td><td>{{ p.department_name }}</td><td>{{ p.email }}</td></tr>{% endfor %}</tbody></table></div>
+{% extends "base.html" %}
+{% from "components/macros.html" import empty_state, page_header %}
+
+{% block title %}Organograma{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/portal.css">
+{% endblock %}
+
+{% block content %}
+<div class="ui-section">
+  {{ page_header(
+    'Organograma',
+    'Estrutura de departamentos, gestores e pessoas.',
+    'Portal'
+  ) }}
+
+  {% if departments %}
+  <section class="ui-org-grid" aria-label="Departamentos">
+    {% for department in departments %}
+    <article class="ui-card">
+      <h2>{{ department.name }}</h2>
+      <p>
+        Gestor:
+        <strong>{{ department.manager_username or 'Não definido' }}</strong>
+      </p>
+      <small>Superior: {{ department.parent_id or 'Diretoria' }}</small>
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
+  {{ empty_state(
+    'Nenhum departamento',
+    'Cadastre a estrutura organizacional nas configurações.',
+    'orgchart'
+  ) }}
+  {% endif %}
+
+  <section class="ui-card ui-org-fallback">
+    <h2>Pessoas</h2>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Usuário</th>
+            <th>Cargo</th>
+            <th>Departamento</th>
+            <th>E-mail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for person in people %}
+          <tr>
+            <td>{{ person.full_name }}</td>
+            <td>{{ person.username }}</td>
+            <td>{{ person.role_title }}</td>
+            <td>{{ person.department_name }}</td>
+            <td>{{ person.email }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
 {% endblock %}

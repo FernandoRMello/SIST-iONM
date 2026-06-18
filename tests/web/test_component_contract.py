@@ -74,7 +74,7 @@ def test_icon_macro_supports_decorative_and_labelled_output() -> None:
     )
     rendered = template.render()
 
-    assert 'href="/assets/icons/sprite.svg#dashboard"' in rendered
+    assert 'href="/assets/icons/sprite.svg?v=20260618#dashboard"' in rendered
     assert 'aria-hidden="true"' in rendered
     assert 'role="img"' in rendered
     assert 'aria-label="Notificações"' in rendered

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import empty_state, icon, page_header, stat_card %}
+{% from "components/macros.html" import empty_state, icon, page_header, pagination, stat_card %}
 
 {% block title %}Relatórios por Vendedor{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="/assets/css/finance.css">{% endblock %}
-{% block page_scripts %}<script src="/assets/js/feedback.js" defer></script><script src="/assets/js/tables.js" defer></script>{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/finance.css?v={{ asset_version }}">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/feedback.js?v={{ asset_version }}" defer></script><script src="/assets/js/tables.js?v={{ asset_version }}" defer></script>{% endblock %}
 
 {% block content %}
 {% set totals = namespace(opps=0, won=0, sale=0, overprice=0) %}
@@ -52,5 +52,6 @@
     <div class="ui-table-wrapper"><table class="ui-table" id="seller-report-table" data-table><thead><tr><th>Vendedor</th><th>R.O</th><th>Propostas</th><th>Ganhos</th><th>Conversão</th><th>Vendido</th><th>Overprice</th><th>Comissão</th><th>Qualitativo</th></tr></thead><tbody>{% for item in report %}<tr><td>{{ item.seller.name }}</td><td>{{ item.metrics.opps }}</td><td>{{ item.metrics.sent }}</td><td>{{ item.metrics.won }}</td><td>{{ "%.1f"|format(item.metrics.conversion) }}%</td><td class="money-sensitive">{{ money(item.metrics.total_sale) }}</td><td class="money-sensitive">{{ money(item.metrics.total_over) }}</td><td class="money-sensitive">{{ money(item.metrics.total_comm) }}</td><td>{{ "%.1f"|format(item.quality) if item.quality else 'Sem avaliação' }}</td></tr>{% endfor %}</tbody></table></div><p data-table-no-results="seller-report-table" hidden></p>
     {% else %}{{ empty_state('Nenhum vendedor', 'Cadastre vendedores para gerar o relatório.', 'sellers') }}{% endif %}
   </section>
+  {{ pagination(pager.page, pager.pages, '/reports/sellers?page_size=' ~ pager.page_size) }}
 </div>
 {% endblock %}

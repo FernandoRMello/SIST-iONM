@@ -1,15 +1,15 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import empty_state, icon, page_header %}
+{% from "components/macros.html" import empty_state, icon, page_header, pagination %}
 
 {% block title %}{{ meta.title }}{% endblock %}
 
 {% block page_styles %}
-<link rel="stylesheet" href="/assets/css/administration.css">
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
 {% endblock %}
 
 {% block page_scripts %}
-<script src="/assets/js/forms.js" defer></script>
-<script src="/assets/js/tables.js" defer></script>
+<script src="/assets/js/forms.js?v={{ asset_version }}" defer></script>
+<script src="/assets/js/tables.js?v={{ asset_version }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -123,5 +123,6 @@
     ) }}
     {% endif %}
   </section>
+  {{ pagination(pager.page, pager.pages, '/cadastros/' ~ table ~ '?page_size=' ~ pager.page_size) }}
 </div>
 {% endblock %}

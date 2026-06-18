@@ -23,6 +23,7 @@ from jinja2 import ChoiceLoader, FileSystemLoader
 from starlette.middleware.sessions import SessionMiddleware
 
 APP_NAME = "SIST-iONM"
+ASSET_VERSION = "20260618"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -45,6 +46,17 @@ templates = Jinja2Templates(directory=LEGACY_TEMPLATE_DIR)
 templates.env.loader = ChoiceLoader(
     [FileSystemLoader(LEGACY_TEMPLATE_DIR), FileSystemLoader(SHARED_TEMPLATE_DIR)]
 )
+
+
+@app.middleware("http")
+async def response_cache_policy(request: Request, call_next):
+    response = await call_next(request)
+    content_type = response.headers.get("content-type", "")
+    if request.url.path.startswith("/assets/") and request.query_params.get("v"):
+        response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    elif "text/html" in content_type:
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 class ChatConnectionManager:
     def __init__(self):
@@ -231,6 +243,32 @@ def num(value):
         return 0.0
 
 
+def pagination_values(total, page=1, page_size=25):
+    try:
+        normalized_total = max(0, int(total or 0))
+    except (TypeError, ValueError):
+        normalized_total = 0
+    try:
+        normalized_page = max(1, int(page or 1))
+    except (TypeError, ValueError):
+        normalized_page = 1
+    try:
+        normalized_size = int(page_size or 25)
+    except (TypeError, ValueError):
+        normalized_size = 25
+    if normalized_size < 1:
+        normalized_size = 25
+    normalized_size = min(normalized_size, 100)
+    pages = max(1, (normalized_total + normalized_size - 1) // normalized_size)
+    normalized_page = min(normalized_page, pages)
+    return {
+        "page": normalized_page,
+        "page_size": normalized_size,
+        "total": normalized_total,
+        "pages": pages,
+    }
+
+
 def today():
     return date.today().isoformat()
 
@@ -263,6 +301,7 @@ def render(request: Request, template: str, context=None):
         "money": money,
         "prob_class": prob_class,
         "app_name": APP_NAME,
+        "asset_version": ASSET_VERSION,
         "current_path": request.url.path,
         "can_view_bi": bool(user and user.get("username") == "fernando.mello"),
     })
@@ -744,6 +783,77 @@ def opp_summary(opp_id):
     return opp
 
 
+def opportunity_summaries(seller_id=None, limit=25, offset=0):
+    where = "WHERE o.seller_id=?" if seller_id else ""
+    params = [seller_id] if seller_id else []
+    params.extend([int(limit), int(offset)])
+    rows = q(f"""
+        WITH item_totals AS (
+            SELECT
+                oi.opportunity_id,
+                COALESCE(SUM(oi.quantity * oi.supplier_unit_price), 0) AS total_supplier,
+                COALESCE(SUM(oi.quantity * oi.sale_unit_price), 0) AS total_sale,
+                COALESCE(SUM(oi.quantity * (oi.sale_unit_price - oi.supplier_unit_price)), 0) AS total_overprice,
+                COALESCE(SUM(oi.quantity * (oi.sale_unit_price - oi.supplier_unit_price) * oi.seller_commission_rate / 100.0), 0) AS total_commission,
+                MAX(CASE WHEN oi.sale_unit_price < COALESCE(p.min_price, 0) THEN 1 ELSE 0 END) AS below_min
+            FROM opportunity_items oi
+            LEFT JOIN products p ON p.id=oi.product_id
+            GROUP BY oi.opportunity_id
+        )
+        SELECT
+            o.*, c.name AS client_name, c.document AS client_doc,
+            s.name AS supplier_name,
+            v.name AS seller_name, v.commission_rate AS seller_default_commission,
+            COALESCE(t.total_supplier, 0) AS total_supplier,
+            COALESCE(t.total_sale, 0) AS total_sale,
+            COALESCE(t.total_overprice, 0) AS total_overprice,
+            COALESCE(t.total_commission, 0) AS total_commission,
+            COALESCE(t.below_min, 0) AS below_min
+        FROM opportunities o
+        LEFT JOIN clients c ON c.id=o.client_id
+        LEFT JOIN suppliers s ON s.id=o.supplier_id
+        LEFT JOIN sellers v ON v.id=o.seller_id
+        LEFT JOIN item_totals t ON t.opportunity_id=o.id
+        {where}
+        ORDER BY o.id DESC
+        LIMIT ? OFFSET ?
+    """, params)
+    for row in rows:
+        row["weighted_overprice"] = (
+            float(row.get("total_overprice") or 0)
+            * float(row.get("probability") or 0)
+            / 100
+        )
+        row["below_min"] = bool(row.get("below_min"))
+    return rows
+
+
+def opportunity_kpis(seller_id=None):
+    where = "WHERE o.seller_id=?" if seller_id else ""
+    params = (seller_id,) if seller_id else ()
+    return q(f"""
+        WITH item_totals AS (
+            SELECT
+                oi.opportunity_id,
+                COALESCE(SUM(oi.quantity * (oi.sale_unit_price - oi.supplier_unit_price)), 0) AS total_overprice,
+                COALESCE(SUM(oi.quantity * (oi.sale_unit_price - oi.supplier_unit_price) * oi.seller_commission_rate / 100.0), 0) AS total_commission
+            FROM opportunity_items oi
+            GROUP BY oi.opportunity_id
+        )
+        SELECT
+            COUNT(o.id) AS opps,
+            COALESCE(SUM(
+                CASE WHEN o.status NOT IN ('Ganho','Perdido','Cancelado','Faturado','Recebido')
+                THEN COALESCE(t.total_overprice, 0) * COALESCE(o.probability, 0) / 100.0
+                ELSE 0 END
+            ), 0) AS weighted_overprice,
+            COALESCE(SUM(COALESCE(t.total_commission, 0)), 0) AS total_commission
+        FROM opportunities o
+        LEFT JOIN item_totals t ON t.opportunity_id=o.id
+        {where}
+    """, params, one=True)
+
+
 def order_summary(order_id):
     order = q("""
         SELECT od.*, o.ro_number, o.id AS opportunity_id
@@ -1099,25 +1209,25 @@ def dashboard(request: Request):
         return redirect_login()
 
     user = current_user(request)
-    if user.get("role") == "admin":
-        rows = q("SELECT id FROM opportunities ORDER BY id DESC")
-    else:
-        rows = q("SELECT id FROM opportunities WHERE seller_id=? ORDER BY id DESC", (user.get("seller_id"),))
-
-    opportunities = [opp_summary(row["id"]) for row in rows]
-    orders = q("SELECT id FROM orders")
-    recv = q("SELECT COALESCE(SUM(amount),0) AS total FROM receivables WHERE status IN ('Aberto','Vencido','Inadimplente')", one=True)["total"]
-    pay = q("SELECT COALESCE(SUM(amount),0) AS total FROM payables WHERE status='Aberto'", one=True)["total"]
+    seller_id = None if user.get("role") == "admin" else user.get("seller_id")
+    opportunities = opportunity_summaries(seller_id=seller_id, limit=20)
+    opportunity_totals = opportunity_kpis(seller_id=seller_id)
+    financial_totals = q("""
+        SELECT
+            (SELECT COUNT(*) FROM orders) AS orders,
+            (SELECT COALESCE(SUM(amount),0) FROM receivables WHERE status IN ('Aberto','Vencido','Inadimplente')) AS recv,
+            (SELECT COALESCE(SUM(amount),0) FROM payables WHERE status='Aberto') AS pay
+    """, one=True)
 
     kpis = {
-        "opps": len(opportunities),
-        "orders": len(orders),
-        "over": sum(o["weighted_overprice"] for o in opportunities if o["status"] not in ["Ganho","Perdido","Cancelado","Faturado","Recebido"]),
-        "comm": sum(o["total_commission"] for o in opportunities),
-        "recv": recv,
-        "pay": pay,
+        "opps": opportunity_totals["opps"],
+        "orders": financial_totals["orders"],
+        "over": opportunity_totals["weighted_overprice"],
+        "comm": opportunity_totals["total_commission"],
+        "recv": financial_totals["recv"],
+        "pay": financial_totals["pay"],
     }
-    return render(request, "dashboard.html", {"kpis": kpis, "opps": opportunities[:20]})
+    return render(request, "dashboard.html", {"kpis": kpis, "opps": opportunities})
 
 
 
@@ -1198,7 +1308,7 @@ def orgchart(request: Request):
     return render(request,"orgchart.html",{"departments":deps,"people":people})
 
 @app.get("/chat", response_class=HTMLResponse)
-def chat(request: Request, room_id: int = None):
+def chat(request: Request, room_id: int = None, page: int = 1, page_size: int = 25):
     if not require_login(request):
         return redirect_login()
     user = current_user(request)
@@ -1223,20 +1333,30 @@ def chat(request: Request, room_id: int = None):
         ORDER BY COALESCE(up.full_name,u.username)
     """, (user["id"],))
 
+    total = q(
+        "SELECT COUNT(*) AS total FROM chat_messages WHERE room_id=?",
+        (room_id,),
+        one=True,
+    )["total"]
+    pager = pagination_values(total, page, page_size)
+    offset = (pager["page"] - 1) * pager["page_size"]
     msgs = q("""
         SELECT cm.*,u.username,up.full_name,up.avatar_path
         FROM chat_messages cm
         LEFT JOIN users u ON u.id=cm.user_id
         LEFT JOIN user_profiles up ON up.user_id=u.id
         WHERE cm.room_id=?
-        ORDER BY cm.id ASC
-    """, (room_id,))
+        ORDER BY cm.id DESC
+        LIMIT ? OFFSET ?
+    """, (room_id, pager["page_size"], offset))
+    msgs.reverse()
 
     return render(request,"chat.html",{
         "rooms": rooms,
         "users": users,
         "room_id": room_id,
-        "messages": msgs
+        "messages": msgs,
+        "pager": pager,
     })
 
 
@@ -1402,14 +1522,30 @@ def chat_private_room(request: Request, other_user_id: int):
 
 
 @app.get("/chat/messages/{room_id}")
-def chat_messages(request: Request, room_id: int):
+def chat_messages(request: Request, room_id: int, page: int = 1, page_size: int = 25):
     if not require_login(request):
         return JSONResponse({"ok": False, "error": "not_logged"}, status_code=401)
     user = current_user(request)
     if not user_can_access_room(user["id"], room_id):
         return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
-    rows = q("SELECT id FROM chat_messages WHERE room_id=? ORDER BY id ASC LIMIT 200", (room_id,))
-    return {"ok": True, "messages": [chat_message_payload(r["id"]) for r in rows]}
+    total = q(
+        "SELECT COUNT(*) AS total FROM chat_messages WHERE room_id=?",
+        (room_id,),
+        one=True,
+    )["total"]
+    pager = pagination_values(total, page, page_size)
+    offset = (pager["page"] - 1) * pager["page_size"]
+    rows = q("""
+        SELECT cm.*, u.username, up.full_name, up.avatar_path
+        FROM chat_messages cm
+        LEFT JOIN users u ON u.id=cm.user_id
+        LEFT JOIN user_profiles up ON up.user_id=u.id
+        WHERE cm.room_id=?
+        ORDER BY cm.id DESC
+        LIMIT ? OFFSET ?
+    """, (room_id, pager["page_size"], offset))
+    rows.reverse()
+    return {"ok": True, "messages": rows, "pagination": pager}
 
 
 @app.websocket("/ws/notify")
@@ -1460,24 +1596,36 @@ async def websocket_chat(websocket: WebSocket, room_id: int):
 # ---------------- Cadastros ----------------
 
 @app.get("/cadastros/{table}", response_class=HTMLResponse)
-def crud_list(request: Request, table: str):
+def crud_list(request: Request, table: str, page: int = 1, page_size: int = 25):
     if not require_login(request):
         return redirect_login()
     if table not in CRUDS:
         return PlainTextResponse("Cadastro não encontrado", status_code=404)
-    rows = q(f"SELECT * FROM {table} ORDER BY id DESC")
-    return render(request, "crud.html", {"table": table, "meta": CRUDS[table], "rows": rows, "edit": None})
+    total = q(f"SELECT COUNT(*) AS total FROM {table}", one=True)["total"]
+    pager = pagination_values(total, page, page_size)
+    offset = (pager["page"] - 1) * pager["page_size"]
+    rows = q(
+        f"SELECT * FROM {table} ORDER BY id DESC LIMIT ? OFFSET ?",
+        (pager["page_size"], offset),
+    )
+    return render(request, "crud.html", {"table": table, "meta": CRUDS[table], "rows": rows, "edit": None, "pager": pager})
 
 
 @app.get("/cadastros/{table}/edit/{record_id}", response_class=HTMLResponse)
-def crud_edit(request: Request, table: str, record_id: int):
+def crud_edit(request: Request, table: str, record_id: int, page: int = 1, page_size: int = 25):
     if not require_login(request):
         return redirect_login()
     if table not in CRUDS:
         return PlainTextResponse("Cadastro não encontrado", status_code=404)
-    rows = q(f"SELECT * FROM {table} ORDER BY id DESC")
+    total = q(f"SELECT COUNT(*) AS total FROM {table}", one=True)["total"]
+    pager = pagination_values(total, page, page_size)
+    offset = (pager["page"] - 1) * pager["page_size"]
+    rows = q(
+        f"SELECT * FROM {table} ORDER BY id DESC LIMIT ? OFFSET ?",
+        (pager["page_size"], offset),
+    )
     edit = q(f"SELECT * FROM {table} WHERE id=?", (record_id,), one=True)
-    return render(request, "crud.html", {"table": table, "meta": CRUDS[table], "rows": rows, "edit": edit})
+    return render(request, "crud.html", {"table": table, "meta": CRUDS[table], "rows": rows, "edit": edit, "pager": pager})
 
 
 @app.post("/cadastros/{table}/save-form")
@@ -1538,7 +1686,7 @@ def crud_delete(request: Request, table: str, record_id: int):
 # ---------------- Oportunidades ----------------
 
 @app.get("/opportunities", response_class=HTMLResponse)
-def opportunities(request: Request, view_mode: str = "kanban"):
+def opportunities(request: Request, view_mode: str = "kanban", page: int = 1, page_size: int = 25):
     if not require_login(request):
         return redirect_login()
 
@@ -1546,14 +1694,18 @@ def opportunities(request: Request, view_mode: str = "kanban"):
     sellers = q("SELECT * FROM sellers WHERE active='Sim' ORDER BY name")
     clients = q("SELECT * FROM clients ORDER BY name")
     suppliers = q("SELECT * FROM suppliers ORDER BY name")
-    products = q("SELECT * FROM products WHERE active='Sim' ORDER BY name")
-
-    if user.get("role") == "admin":
-        rows = q("SELECT id FROM opportunities ORDER BY id DESC")
+    seller_id = None if user.get("role") == "admin" else user.get("seller_id")
+    if seller_id:
+        total = q("SELECT COUNT(*) AS total FROM opportunities WHERE seller_id=?", (seller_id,), one=True)["total"]
     else:
-        rows = q("SELECT id FROM opportunities WHERE seller_id=? ORDER BY id DESC", (user.get("seller_id"),))
-
-    opps = [opp_summary(row["id"]) for row in rows]
+        total = q("SELECT COUNT(*) AS total FROM opportunities", one=True)["total"]
+    pager = pagination_values(total, page, page_size)
+    offset = (pager["page"] - 1) * pager["page_size"]
+    opps = opportunity_summaries(
+        seller_id=seller_id,
+        limit=pager["page_size"],
+        offset=offset,
+    )
     kanban = {status: [] for status in STATUS_OPP}
     for opp in opps:
         kanban.setdefault(opp.get("status") or "Lead", []).append(opp)
@@ -1564,8 +1716,8 @@ def opportunities(request: Request, view_mode: str = "kanban"):
         "clients": clients,
         "suppliers": suppliers,
         "sellers": sellers,
-        "products": products,
-        "statuses": STATUS_OPP
+        "statuses": STATUS_OPP,
+        "pager": pager,
     })
 
 
@@ -1783,7 +1935,7 @@ def commissions(request: Request):
 # ---------------- Fiscal / Financeiro ----------------
 
 @app.get("/finance", response_class=HTMLResponse)
-def finance(request: Request, segment: str = "receivables"):
+def finance(request: Request, segment: str = "receivables", page: int = 1, page_size: int = 25):
     if not require_login(request):
         return redirect_login()
     if current_user(request).get("role") not in ["admin", "financeiro"]:
@@ -1794,14 +1946,21 @@ def finance(request: Request, segment: str = "receivables"):
 
     rows = []
     if segment == "receivables":
+        summary = q("SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS amount FROM receivables", one=True)
+        pager = pagination_values(summary["total"], page, page_size)
+        offset = (pager["page"] - 1) * pager["page_size"]
         rows = q("""
             SELECT r.*, c.name AS client_name, o.order_number
             FROM receivables r
             LEFT JOIN clients c ON c.id=r.client_id
             LEFT JOIN orders o ON o.id=r.order_id
             ORDER BY r.id DESC
-        """)
+            LIMIT ? OFFSET ?
+        """, (pager["page_size"], offset))
     elif segment == "payables":
+        summary = q("SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS amount FROM payables", one=True)
+        pager = pagination_values(summary["total"], page, page_size)
+        offset = (pager["page"] - 1) * pager["page_size"]
         rows = q("""
             SELECT p.*, s.name AS seller_name, sp.name AS supplier_name, o.order_number
             FROM payables p
@@ -1809,21 +1968,27 @@ def finance(request: Request, segment: str = "receivables"):
             LEFT JOIN suppliers sp ON sp.id=p.supplier_id
             LEFT JOIN orders o ON o.id=p.order_id
             ORDER BY p.id DESC
-        """)
+            LIMIT ? OFFSET ?
+        """, (pager["page_size"], offset))
     else:
+        summary = q("SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS amount FROM costs", one=True)
+        pager = pagination_values(summary["total"], page, page_size)
+        offset = (pager["page"] - 1) * pager["page_size"]
         rows = q("""
             SELECT c.*, o.order_number
             FROM costs c
             LEFT JOIN orders o ON o.id=c.order_id
             ORDER BY c.id DESC
-        """)
+            LIMIT ? OFFSET ?
+        """, (pager["page_size"], offset))
 
     orders_list = q("SELECT * FROM orders ORDER BY id DESC") if segment == "costs" else []
 
     return render(request, "finance.html", {
         "segment": segment,
         "rows": rows,
-        "total": sum(float(row.get("amount") or 0) for row in rows),
+        "total": summary["amount"],
+        "pager": pager,
         "orders": orders_list,
         "cost_categories": COST_CATEGORIES,
         "cost_centers": COST_CENTERS,
@@ -1853,15 +2018,18 @@ async def add_cost(request: Request):
 # ---------------- Relatórios ----------------
 
 @app.get("/reports/sellers", response_class=HTMLResponse)
-def report_sellers(request: Request):
+def report_sellers(request: Request, page: int = 1, page_size: int = 25):
     if not require_login(request):
         return redirect_login()
     if not require_admin(request):
         return PlainTextResponse("Sem permissão", status_code=403)
 
     sellers = q("SELECT * FROM sellers ORDER BY name")
+    pager = pagination_values(len(sellers), page, page_size)
+    offset = (pager["page"] - 1) * pager["page_size"]
+    report_sellers_page = sellers[offset:offset + pager["page_size"]]
     report = []
-    for seller in sellers:
+    for seller in report_sellers_page:
         metrics = seller_metrics(seller["id"])
         review = q(
             "SELECT * FROM seller_reviews WHERE seller_id=? ORDER BY id DESC LIMIT 1",
@@ -1878,7 +2046,7 @@ def report_sellers(request: Request):
             quality = sum(scores) / len(scores)
         report.append({"seller": seller, "metrics": metrics, "review": review, "quality": quality})
 
-    return render(request, "seller_reports.html", {"report": report, "sellers": sellers})
+    return render(request, "seller_reports.html", {"report": report, "sellers": sellers, "pager": pager})
 
 
 @app.post("/reports/sellers/review")

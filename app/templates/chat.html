@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import page_header %}
+{% from "components/macros.html" import page_header, pagination %}
 
 {% block title %}Chat{% endblock %}
 
 {% block page_styles %}
-<link rel="stylesheet" href="/assets/css/portal.css">
+<link rel="stylesheet" href="/assets/css/portal.css?v={{ asset_version }}">
 {% endblock %}
 
 {% block content %}
@@ -72,6 +72,8 @@
         </article>
         {% endfor %}
       </div>
+
+      {{ pagination(pager.page, pager.pages, '/chat?room_id=' ~ room_id ~ '&page_size=' ~ pager.page_size) }}
 
       <form class="ui-chat-form" id="fullChatForm">
         <input type="hidden" id="fullChatRoomId" value="{{ room_id }}">

@@ -3,8 +3,8 @@
 
 {% block title %}Pedidos / Fechamento{% endblock %}
 
-{% block page_styles %}<link rel="stylesheet" href="/assets/css/crm.css">{% endblock %}
-{% block page_scripts %}<script src="/assets/js/feedback.js" defer></script>{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/crm.css?v={{ asset_version }}">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/feedback.js?v={{ asset_version }}" defer></script>{% endblock %}
 
 {% block content %}
 <div class="ui-crm-stack">

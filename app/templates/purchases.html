@@ -2,8 +2,8 @@
 {% from "components/macros.html" import empty_state, page_header, status_badge %}
 
 {% block title %}Compras{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="/assets/css/crm.css">{% endblock %}
-{% block page_scripts %}<script src="/assets/js/tables.js" defer></script>{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/crm.css?v={{ asset_version }}">{% endblock %}
+{% block page_scripts %}<script src="/assets/js/tables.js?v={{ asset_version }}" defer></script>{% endblock %}
 
 {% block content %}
 <div class="ui-crm-stack">

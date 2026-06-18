@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import empty_state, page_header, stat_card, status_badge %}
+{% from "components/macros.html" import empty_state, page_header, pagination, stat_card, status_badge %}
 
 {% block title %}Fiscal / Financeiro{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="/assets/css/finance.css">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/finance.css?v={{ asset_version }}">{% endblock %}
 
 {% block content %}
 <div class="ui-finance-stack">
@@ -23,7 +23,7 @@
     <div class="ui-finance-summary">{{ stat_card('Total a receber', money(total), 'finance', 'info', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
     <div class="ui-card ui-finance-section">
       <header><h2>Contas a receber</h2><p>Valores emitidos para clientes.</p></header>
-      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Descrição</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for receivable in rows %}<tr><td>{{ receivable.order_number or '-' }}</td><td>{{ receivable.client_name or '-' }}</td><td>{{ receivable.description }}</td><td>{{ receivable.due_date or '-' }}</td><td class="money-sensitive">{{ money(receivable.amount) }}</td><td>{{ status_badge(receivable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a receber', 'Os recebíveis gerados aparecerão nesta lista.', 'finance') }}{% endif %}
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Cliente</th><th>Descrição</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for receivable in rows %}<tr><td>{{ receivable.order_number or '-' }}</td><td>{{ receivable.client_name or '-' }}</td><td>{{ receivable.description }}</td><td>{{ receivable.due_date or '-' }}</td><td class="money-sensitive">{{ money(receivable.amount) }}</td><td>{{ status_badge(receivable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a receber', 'Os recebíveis gerados aparecerão nesta lista.', 'finance') }}{% endif %}
     </div>
   </section>
   {% elif segment == 'payables' %}
@@ -31,7 +31,7 @@
     <div class="ui-finance-summary">{{ stat_card('Total a pagar', money(total), 'money', 'warning', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
     <div class="ui-card ui-finance-section">
       <header><h2>Contas a pagar</h2><p>Obrigações com vendedores e fornecedores.</p></header>
-      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Vendedor / fornecedor</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for payable in rows %}<tr><td>{{ payable.order_number or '-' }}</td><td>{{ payable.description }}</td><td>{{ payable.seller_name or payable.supplier_name or '-' }}</td><td>{{ payable.due_date or '-' }}</td><td class="money-sensitive">{{ money(payable.amount) }}</td><td>{{ status_badge(payable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a pagar', 'As obrigações geradas aparecerão nesta lista.', 'money') }}{% endif %}
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Vendedor / fornecedor</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for payable in rows %}<tr><td>{{ payable.order_number or '-' }}</td><td>{{ payable.description }}</td><td>{{ payable.seller_name or payable.supplier_name or '-' }}</td><td>{{ payable.due_date or '-' }}</td><td class="money-sensitive">{{ money(payable.amount) }}</td><td>{{ status_badge(payable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a pagar', 'As obrigações geradas aparecerão nesta lista.', 'money') }}{% endif %}
     </div>
   </section>
   {% else %}
@@ -55,9 +55,10 @@
     </div>
     <div class="ui-card ui-finance-section">
       <header><h2>Custos</h2><p>Despesas operacionais registradas.</p></header>
-      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Fornecedor</th><th>Valor</th><th>Data</th></tr></thead><tbody>{% for cost in rows %}<tr><td>{{ cost.order_number or '-' }}</td><td>{{ cost.description }}</td><td>{{ cost.category }}</td><td>{{ cost.cost_center }}</td><td>{{ cost.vendor or '-' }}</td><td class="money-sensitive">{{ money(cost.amount) }}</td><td>{{ cost.date }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhum custo', 'Adicione o primeiro custo usando o formulário acima.', 'purchases') }}{% endif %}
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Fornecedor</th><th>Valor</th><th>Data</th></tr></thead><tbody>{% for cost in rows %}<tr><td>{{ cost.order_number or '-' }}</td><td>{{ cost.description }}</td><td>{{ cost.category }}</td><td>{{ cost.cost_center }}</td><td>{{ cost.vendor or '-' }}</td><td class="money-sensitive">{{ money(cost.amount) }}</td><td>{{ cost.date }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhum custo', 'Adicione o primeiro custo usando o formulário acima.', 'purchases') }}{% endif %}
     </div>
   </section>
   {% endif %}
+  {{ pagination(pager.page, pager.pages, '/finance?segment=' ~ segment ~ '&page_size=' ~ pager.page_size) }}
 </div>
 {% endblock %}

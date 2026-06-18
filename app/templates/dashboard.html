@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "components/macros.html" import page_header, stat_card, status_badge, empty_state %}
 {% block title %}Dashboard{% endblock %}
-{% block page_styles %}<link rel="stylesheet" href="/assets/css/executive.css">{% endblock %}
+{% block page_styles %}<link rel="stylesheet" href="/assets/css/executive.css?v={{ asset_version }}">{% endblock %}
 {% block content %}
 <div class="ui-section">
   {% call page_header('Painel comercial', 'Pipeline, propostas e compromissos financeiros em uma leitura executiva.', 'Visão geral') %}

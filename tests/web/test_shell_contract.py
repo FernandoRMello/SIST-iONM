@@ -15,8 +15,8 @@ def test_shared_shell_has_local_styles_and_deferred_scripts() -> None:
 
     for stylesheet in ("tokens", "reset", "layout", "components", "utilities"):
         assert f'/assets/css/{stylesheet}.css' in source
-    assert 'src="/assets/js/app-shell.js" defer' in source
-    assert 'src="/assets/js/navigation.js" defer' in source
+    assert 'src="/assets/js/app-shell.js?v={{ asset_version }}" defer' in source
+    assert 'src="/assets/js/navigation.js?v={{ asset_version }}" defer' in source
     assert 'src="/static/chat_realtime.js" defer' in source
 
 

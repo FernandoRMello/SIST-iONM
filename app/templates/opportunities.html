@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% from "components/macros.html" import empty_state, icon, page_header, status_badge %}
+{% from "components/macros.html" import empty_state, icon, page_header, pagination, status_badge %}
 
 {% block title %}Pipeline / R.O{% endblock %}
 
 {% block page_styles %}
-<link rel="stylesheet" href="/assets/css/crm.css">
+<link rel="stylesheet" href="/assets/css/crm.css?v={{ asset_version }}">
 {% endblock %}
 
 {% block page_scripts %}
-<script src="/assets/js/forms.js" defer></script>
+<script src="/assets/js/forms.js?v={{ asset_version }}" defer></script>
 {% endblock %}
 
 {% block content %}
@@ -164,5 +164,6 @@
     {% endfor %}
   </section>
   {% endif %}
+  {{ pagination(pager.page, pager.pages, '/opportunities?view_mode=' ~ view_mode ~ '&page_size=' ~ pager.page_size) }}
 </div>
 {% endblock %}

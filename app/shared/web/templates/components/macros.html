@@ -1,6 +1,6 @@
 {% macro icon(name, size=20, label=none, class_name='') -%}
 <svg class="ui-icon{% if class_name %} {{ class_name }}{% endif %}" width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" focusable="false"{% if label %} role="img" aria-label="{{ label }}"{% else %} aria-hidden="true"{% endif %}>
-  <use href="/assets/icons/sprite.svg#{{ name }}"></use>
+  <use href="/assets/icons/sprite.svg?v=20260618#{{ name }}"></use>
 </svg>
 {%- endmacro %}
 
@@ -44,10 +44,11 @@
 
 {% macro pagination(page, total_pages, base_url) -%}
 {% if total_pages > 1 %}
+{% set separator = '&' if '?' in base_url else '?' %}
 <nav class="ui-pagination" aria-label="Paginação">
-  <a class="ui-button ui-button--ghost{% if page <= 1 %} is-disabled{% endif %}" href="{{ base_url }}?page={{ page - 1 if page > 1 else 1 }}" aria-label="Página anterior">{{ icon('arrow-left', 16) }}</a>
+  <a class="ui-button ui-button--ghost{% if page <= 1 %} is-disabled{% endif %}" href="{{ base_url }}{{ separator }}page={{ page - 1 if page > 1 else 1 }}" aria-label="Página anterior">{{ icon('arrow-left', 16) }}</a>
   <span>Página {{ page }} de {{ total_pages }}</span>
-  <a class="ui-button ui-button--ghost{% if page >= total_pages %} is-disabled{% endif %}" href="{{ base_url }}?page={{ page + 1 if page < total_pages else total_pages }}" aria-label="Próxima página">{{ icon('arrow-right', 16) }}</a>
+  <a class="ui-button ui-button--ghost{% if page >= total_pages %} is-disabled{% endif %}" href="{{ base_url }}{{ separator }}page={{ page + 1 if page < total_pages else total_pages }}" aria-label="Próxima página">{{ icon('arrow-right', 16) }}</a>
 </nav>
 {% endif %}
 {%- endmacro %}

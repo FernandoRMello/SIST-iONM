@@ -12,6 +12,8 @@ app/shared/web/templates/errors/    páginas 400/403/404/500
 app/shared/web/static/css/           design system e módulos visuais
 app/shared/web/static/js/            comportamento progressivo
 app/shared/web/static/js/shell-navigation.js navegação central com shell persistente
+app/static/chat_notification_rules.js regras testáveis de visibilidade e badge
+app/features/profile_avatar/        validação e normalização de fotos de perfil
 app/shared/web/static/icons/         sprite SVG local
 app/static/chat_realtime.js          cliente WebSocket
 tests/characterization/              inventário e preservação de rotas/render
@@ -60,6 +62,13 @@ tests/performance/                   budgets de consulta, paginação e cache
 Scripts que ligam eventos a elementos de página devem ser idempotentes: execute na carga tradicional e no evento `sistionm:content-updated`, marcando cada elemento com `data-ready`. Formulários, downloads e links fora do menu não devem ser interceptados. Qualquer falha na resposta ou em assets deve voltar à navegação tradicional.
 
 No chat, `attachment_is_image` é calculado no backend. PNG, JPG/JPEG, WebP e GIF são exibidos como miniaturas; os demais formatos permanecem como links.
+
+## Colaboração e identidade
+
+- `chat_read_state` persiste o último ID lido por usuário/sala; `/chat/context` restaura contadores e `/chat/read/{room_id}` confirma leitura.
+- `feed_reactions` guarda uma única reação `like` ou `dislike` por usuário/publicação. Repetir remove; selecionar a oposta substitui.
+- Posts e comentários recebem `avatar_path` na consulta e usam a inicial como fallback.
+- `profile-avatar-editor.js` controla moldura, arraste e zoom; `app/features/profile_avatar/service.py` nunca confia no arquivo do navegador e gera JPEG RGB 512 × 512.
 
 ## Importação de clientes e fornecedores
 

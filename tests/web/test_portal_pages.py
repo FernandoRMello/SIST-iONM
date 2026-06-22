@@ -82,6 +82,7 @@ def test_chat_notifications_are_assigned_to_the_sender_contact() -> None:
     assert "`user:${payload.message.user_id}`" in rules
     assert "state.unread[`user:${userId}`] = 0" in source
     assert "renderContacts(); updateBadges(); connectNotifications();" in source
+    assert "if (visible) { markRead(payload.room_id); return; }" in source
 
 
 def test_both_chat_composers_offer_accessible_file_attachments() -> None:

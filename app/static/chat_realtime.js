@@ -132,7 +132,7 @@
         currentRoomId: state.currentRoomId,
         fullRoomId: Number(byId('fullChatRoomId')?.value || 0),
       });
-      if (visible) return;
+      if (visible) { markRead(payload.room_id); return; }
       const key = rules.notificationKey(payload, state.generalRoomId);
       state.unread[key] = (state.unread[key] || 0) + 1; updateBadges();
     };

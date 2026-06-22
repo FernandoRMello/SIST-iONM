@@ -26,6 +26,9 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 | BUG-016 | Alta (segurança) | Anexos do chat | O endpoint legado aceitava qualquer extensão, sem limite, preservava o nome fornecido e não publicava a mensagem em tempo real. | Lista segura de formatos, máximo de 10 MiB, nome físico aleatório, autorização antes do upload e broadcast/notificação unificados. | `tests/web/test_chat_delivery.py` |
 | BUG-017 | Média (desempenho/UX) | Navegação | Cada clique do menu recriava todo o shell e interrompia o estado vivo do chat. | Navegação progressiva troca somente o conteúdo central, sincroniza histórico/assets e usa recarga completa como fallback. | `tests/js/shell-navigation.test.js` + `tests/web/test_shell_contract.py` |
 | BUG-018 | Média (usabilidade) | Imagens no chat | Anexos de imagem apareciam apenas como link genérico. | PNG, JPG/JPEG, WebP e GIF recebem miniatura segura e clicável dentro da mensagem. | `tests/web/test_chat_delivery.py::test_full_chat_renders_image_thumbnail_but_keeps_documents_as_links` |
+| BUG-019 | Alta (comunicação) | Notificações do chat | A última sala selecionada era tratada como visível mesmo com painel fechado/minimizado, descartando o badge. | Visibilidade real, leitura persistente e restauração de contadores pelo contexto. | `tests/web/test_chat_notifications.py` + `tests/js/chat-notifications.test.js` |
+| BUG-020 | Média (integridade) | Feed | Like legado era GET e não havia reação negativa nem exclusividade formal. | POST com tabela única, restrição por usuário/post e alternância like/dislike/remover. | `tests/web/test_feed_reactions.py` |
+| BUG-021 | Alta (segurança) | Avatar | Upload de perfil confiava na extensão, não limitava tamanho e preservava metadados/conteúdo original. | Pillow valida conteúdo, limita pixels/tamanho, corrige EXIF e regrava JPEG 512 × 512 com nome aleatório. | `tests/features/test_profile_avatar_service.py` + `tests/web/test_profile_avatar.py` |
 
 ## Verificações transversais
 
@@ -47,5 +50,7 @@ python -m pytest tests\web tests\performance tests\characterization tests\featur
 python -m ruff check app tests
 node --check app\static\chat_realtime.js
 node --test tests\js\shell-navigation.test.js
+node --test tests\js\chat-notifications.test.js
+node --test tests\js\profile-avatar-editor.test.js
 git diff --check
 ```

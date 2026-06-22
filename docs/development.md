@@ -47,6 +47,8 @@ O comando de mypy é reservado ao backend modular quando `app/core` e `scripts` 
 ```bash
 node --check app/static/chat_realtime.js
 node --test tests/js/shell-navigation.test.js
+node --test tests/js/chat-notifications.test.js
+node --test tests/js/profile-avatar-editor.test.js
 git diff --check
 ```
 
@@ -61,6 +63,16 @@ Os links do menu lateral atualizam apenas o conteúdo central. Para validar manu
 5. Envie uma imagem e um PDF; a imagem deve aparecer como miniatura e o PDF como link.
 
 PNG, JPG/JPEG, GIF e WebP são imagens inline. Todos os anexos mantêm o limite de 10 MiB. Se a navegação dinâmica falhar, o sistema recarrega a página normalmente.
+
+## Verificação de colaboração
+
+1. Abra uma conversa privada, minimize o painel e envie mensagem pelo outro usuário: sino e avatar do remetente devem aumentar.
+2. Abra a conversa: o badge deve zerar e permanecer lido após atualizar a página.
+3. No Feed, alterne 👍 para 👎 e repita 👎: os estados esperados são dislike e depois sem reação.
+4. Confirme foto ou inicial em posts e comentários.
+5. No Perfil, selecione uma imagem, arraste, aplique zoom e salve; o arquivo final deve ser JPEG 512 × 512.
+
+O WebSocket em memória exige um único worker. Para múltiplos workers, planeje pub/sub compartilhado antes do deploy.
 
 ## Banco de desenvolvimento
 

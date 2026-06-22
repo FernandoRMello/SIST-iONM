@@ -72,3 +72,38 @@ def test_mark_read_rejects_inaccessible_room(
     response = authenticated_client.post(f"/chat/read/{room_id}")
 
     assert response.status_code == 403
+
+
+def test_message_sent_by_websocket_reaches_recipient_notification_socket(
+    legacy_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    room_id = general_room_id(legacy_test_state)
+    admin_login = legacy_client.post(
+        "/login",
+        data={
+            "username": legacy_test_state.admin_username,
+            "password": legacy_test_state.admin_password,
+        },
+        follow_redirects=False,
+    )
+    assert admin_login.status_code == 303
+
+    with legacy_client.websocket_connect("/ws/notify") as notification_socket:
+        seller_login = legacy_client.post(
+            "/login",
+            data={
+                "username": legacy_test_state.seller_username,
+                "password": legacy_test_state.seller_password,
+            },
+            follow_redirects=False,
+        )
+        assert seller_login.status_code == 303
+        with legacy_client.websocket_connect(f"/ws/chat/{room_id}") as sender_socket:
+            sender_socket.send_json({"content": "Notificação em tempo real"})
+            payload = notification_socket.receive_json()
+
+    assert payload["type"] == "chat_message"
+    assert payload["room_id"] == room_id
+    assert payload["message"]["content"] == "Notificação em tempo real"
+    assert payload["message"]["user_id"] == legacy_test_state.ids["settings_user_id"]

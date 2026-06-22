@@ -7,6 +7,7 @@ from app.main import SHARED_TEMPLATE_DIR, templates
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SPRITE_PATH = REPO_ROOT / "app" / "shared" / "web" / "static" / "icons" / "sprite.svg"
 MACROS_PATH = SHARED_TEMPLATE_DIR / "components" / "macros.html"
+SHARED_JS = REPO_ROOT / "app" / "shared" / "web" / "static" / "js"
 
 REQUIRED_ICON_IDS = {
     "dashboard",
@@ -83,3 +84,11 @@ def test_icon_macro_supports_decorative_and_labelled_output() -> None:
 def test_choice_loader_resolves_legacy_and_shared_templates() -> None:
     assert templates.env.get_template("login.html") is not None
     assert templates.env.get_template("components/macros.html") is not None
+
+
+def test_dynamic_page_initializers_are_idempotent() -> None:
+    for filename in ("forms.js", "tables.js"):
+        source = (SHARED_JS / filename).read_text(encoding="utf-8")
+
+        assert "sistionm:content-updated" in source
+        assert "dataset.ready" in source

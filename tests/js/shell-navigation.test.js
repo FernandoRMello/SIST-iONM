@@ -45,3 +45,17 @@ test('does not intercept unsafe navigation targets', () => {
   assert.equal(navigation.shouldIntercept(event, anchor('http://127.0.0.1:8000/feed', { target: '_blank' }), currentUrl), false);
   assert.equal(navigation.shouldIntercept(event, anchor('http://127.0.0.1:8000/export', { attributes: ['download'] }), currentUrl), false);
 });
+
+test('returns only missing asset URLs without duplicates', () => {
+  const missing = navigation.missingAssetUrls(
+    ['http://127.0.0.1:8000/assets/css/layout.css?v=1'],
+    [
+      '/assets/css/layout.css?v=1',
+      '/assets/css/crm.css?v=1',
+      '/assets/css/crm.css?v=1',
+    ],
+    currentUrl,
+  );
+
+  assert.deepEqual(missing, ['http://127.0.0.1:8000/assets/css/crm.css?v=1']);
+});

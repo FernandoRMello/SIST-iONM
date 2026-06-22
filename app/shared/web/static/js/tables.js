@@ -21,9 +21,13 @@
 
   function init() {
     document.querySelectorAll('[data-table-search]').forEach((input) => {
+      if (input.dataset.ready) return;
+      input.dataset.ready = 'true';
       input.addEventListener('input', () => filterTable(input));
     });
   }
 
-  window.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', init);
+  else init();
+  document.addEventListener('sistionm:content-updated', init);
 })();

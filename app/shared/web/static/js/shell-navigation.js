@@ -26,6 +26,18 @@
     return new URL(value, pageUrl).href;
   }
 
+  function missingAssetUrls(existing, candidates, pageUrl) {
+    const known = new Set(existing.map((value) => assetUrl(value, pageUrl)));
+    const missing = [];
+    candidates.forEach((value) => {
+      const url = assetUrl(value, pageUrl);
+      if (known.has(url)) return;
+      known.add(url);
+      missing.push(url);
+    });
+    return missing;
+  }
+
   function existingAssetUrls(documentNode, selector, attribute) {
     return new Set(
       [...documentNode.querySelectorAll(selector)]
@@ -36,12 +48,11 @@
   }
 
   async function loadStyles(nextDocument, pageUrl) {
-    const loaded = existingAssetUrls(root.document, 'link[rel="stylesheet"][href]', 'href');
-    const candidates = [...nextDocument.querySelectorAll('link[rel="stylesheet"][href]')];
-    await Promise.all(candidates.map((source) => {
-      const href = assetUrl(source.getAttribute('href'), pageUrl);
-      if (loaded.has(href)) return Promise.resolve();
-      loaded.add(href);
+    const loaded = [...existingAssetUrls(root.document, 'link[rel="stylesheet"][href]', 'href')];
+    const candidates = [...nextDocument.querySelectorAll('link[rel="stylesheet"][href]')]
+      .map((source) => source.getAttribute('href'));
+    const missing = missingAssetUrls(loaded, candidates, pageUrl);
+    await Promise.all(missing.map((href) => {
       return new Promise((resolve, reject) => {
         const link = root.document.createElement('link');
         link.rel = 'stylesheet';
@@ -55,12 +66,10 @@
   }
 
   async function loadScripts(nextDocument, pageUrl) {
-    const loaded = existingAssetUrls(root.document, 'script[src]', 'src');
-    const candidates = [...nextDocument.querySelectorAll('script[src]')];
-    for (const source of candidates) {
-      const src = assetUrl(source.getAttribute('src'), pageUrl);
-      if (loaded.has(src)) continue;
-      loaded.add(src);
+    const loaded = [...existingAssetUrls(root.document, 'script[src]', 'src')];
+    const candidates = [...nextDocument.querySelectorAll('script[src]')]
+      .map((source) => source.getAttribute('src'));
+    for (const src of missingAssetUrls(loaded, candidates, pageUrl)) {
       await new Promise((resolve, reject) => {
         const script = root.document.createElement('script');
         script.src = src;
@@ -145,5 +154,5 @@
     root.addEventListener('popstate', () => navigate(root.location.href, { push: false }));
   }
 
-  return { init, navigate, shouldIntercept };
+  return { init, missingAssetUrls, navigate, shouldIntercept };
 });

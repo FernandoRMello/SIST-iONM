@@ -22,14 +22,20 @@
 
   function init() {
     document.querySelectorAll('[data-confirm]').forEach((element) => {
+      if (element.dataset.ready) return;
+      element.dataset.ready = 'true';
       const eventName = element.matches('form') ? 'submit' : 'click';
       element.addEventListener(eventName, confirmAction);
     });
 
     document.querySelectorAll('[data-disclosure]').forEach((button) => {
+      if (button.dataset.ready) return;
+      button.dataset.ready = 'true';
       button.addEventListener('click', () => toggleDisclosure(button));
     });
   }
 
-  window.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', init);
+  else init();
+  document.addEventListener('sistionm:content-updated', init);
 })();

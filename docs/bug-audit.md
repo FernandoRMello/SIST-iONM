@@ -20,6 +20,7 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 | BUG-010 | Média (desempenho) | Assets | CSS/JS estáticos não tinham versão nem política de cache segura para atualização. | Cache-buster em todos os assets e `Cache-Control: public, max-age=31536000, immutable` somente quando versionados. | `tests/performance/test_pagination.py::test_versioned_assets_are_cached_but_html_is_private` |
 | BUG-011 | Média | Respostas web | Não havia CSP, proteção contra framing, `nosniff`, política de referenciador ou restrição de APIs do navegador. | Headers defensivos aplicados pelo middleware; HTML autenticado e público usa `no-store`. | `tests/web/test_accessibility_contract.py::test_html_responses_include_baseline_security_headers` |
 | BUG-012 | Média | Design system | `style.css` legado ainda controlava chat lateral e ocultação de valores, criando duas fontes visuais e risco de conflito. | Regras migradas para `layout.css`, `components.css` e `utilities.css`; arquivo e referência removidos. | `tests/web/test_accessibility_contract.py::test_shared_shell_uses_no_legacy_stylesheet_or_navigation_emoji` |
+| BUG-013 | Alta (estabilidade) | SQLite | `with sqlite3.Connection` confirmava/abortava transações, mas não fechava o handle; a suíte com cobertura expôs centenas de `ResourceWarning`. | `db()` agora é um context manager explícito e fecha a conexão em `finally`. | `tests/performance/test_connection_lifecycle.py` |
 
 ## Verificações transversais
 

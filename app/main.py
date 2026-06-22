@@ -6,6 +6,7 @@ import shutil
 import socket
 import sqlite3
 import subprocess
+from contextlib import contextmanager
 from datetime import date, datetime
 from pathlib import Path
 
@@ -193,10 +194,14 @@ CRUDS = {
 }
 
 
+@contextmanager
 def db():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def q(sql, params=(), one=False):
@@ -251,10 +256,11 @@ def num(value):
     if isinstance(value, (int, float)):
         return float(value)
     s = str(value).strip().replace("R$", "").replace(" ", "")
-    if "," in s and "." in s:
-        s = s.replace(".", "").replace(",", ".")
-    else:
-        s = s.replace(",", ".")
+    s = (
+        s.replace(".", "").replace(",", ".")
+        if "," in s and "." in s
+        else s.replace(",", ".")
+    )
     try:
         return float(s)
     except Exception:
@@ -1669,7 +1675,7 @@ async def crud_save(request: Request, table: str):
             data[key] = int(num(data[key])) if key == "supplier_id" else num(data[key])
 
     if record_id:
-        sets = ",".join([f"{key}=?" for key in data.keys()])
+        sets = ",".join([f"{key}=?" for key in data])
         exec_sql(f"UPDATE {table} SET {sets} WHERE id=?", list(data.values()) + [record_id])
         log(request, table, record_id, "update", f"Atualizou {CRUDS[table]['title']}")
     else:
@@ -1678,12 +1684,15 @@ async def crud_save(request: Request, table: str):
         new_id = exec_sql(f"INSERT INTO {table}({cols}) VALUES({placeholders})", list(data.values()))
         log(request, table, new_id, "create", f"Criou {CRUDS[table]['title']}")
 
-        if table == "sellers" and data.get("username"):
-            if not q("SELECT id FROM users WHERE username=?", (data["username"],), one=True):
-                exec_sql(
-                    "INSERT INTO users(username,password_hash,role,seller_id,active) VALUES(?,?,?,?,?)",
-                    (data["username"], hash_password("123456"), "vendedor", new_id, "Sim")
-                )
+        if (
+            table == "sellers"
+            and data.get("username")
+            and not q("SELECT id FROM users WHERE username=?", (data["username"],), one=True)
+        ):
+            exec_sql(
+                "INSERT INTO users(username,password_hash,role,seller_id,active) VALUES(?,?,?,?,?)",
+                (data["username"], hash_password("123456"), "vendedor", new_id, "Sim")
+            )
 
     return RedirectResponse(f"/cadastros/{table}", status_code=303)
 
@@ -2270,7 +2279,6 @@ async def user_update(request: Request, user_id: int):
         return PlainTextResponse("Usuário é obrigatório", status_code=400)
 
     # Evita remover o próprio admin da tela sem querer.
-    current = current_user(request)
     existing = q("SELECT * FROM users WHERE id=?", (user_id,), one=True)
     if existing and existing["username"] == "fernando.mello":
         role = "admin"

@@ -33,7 +33,7 @@ from app.features.catalog_import.service import (
 )
 
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260622.3"
+ASSET_VERSION = "20260622.4"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"

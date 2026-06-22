@@ -234,6 +234,12 @@
   padding: var(--space-5) var(--space-4) var(--space-8);
 }
 
+.ui-content--loading {
+  opacity: 0.58;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
 .ui-section {
   display: grid;
   gap: var(--space-5);

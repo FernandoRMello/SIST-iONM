@@ -110,3 +110,51 @@ def test_chat_rejects_attachment_above_the_size_limit(
     assert response.status_code == 400
     assert "limite" in response.json()["error"].lower()
     assert list(uploads.iterdir()) == []
+
+
+def test_chat_accepts_gif_and_marks_it_as_an_inline_image(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    uploads = tmp_path / "uploads"
+    uploads.mkdir()
+    monkeypatch.setattr(legacy, "UPLOAD_DIR", uploads)
+
+    response = admin_client.post(
+        "/chat/send",
+        data={"room_id": str(general_room_id(legacy_test_state)), "content": "Imagem"},
+        files={"attachment": ("animacao.gif", b"GIF89a-test", "image/gif")},
+        headers={"accept": "application/json"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["message"]["attachment_is_image"] is True
+    assert list(uploads.glob("*.gif"))
+
+
+def test_full_chat_renders_image_thumbnail_but_keeps_documents_as_links(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    room_id = general_room_id(legacy_test_state)
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        user_id = connection.execute(
+            "SELECT id FROM users WHERE username=?",
+            (legacy_test_state.admin_username,),
+        ).fetchone()[0]
+        for path in ("uploads/foto.png", "uploads/manual.pdf"):
+            connection.execute(
+                "INSERT INTO chat_messages(room_id,user_id,content,attachment_path,created_at) VALUES(?,?,?,?,?)",
+                (room_id, user_id, "Anexo", path, "2026-06-22T13:00:00"),
+            )
+
+    response = admin_client.get(f"/chat?room_id={room_id}")
+
+    assert response.status_code == 200
+    assert 'class="ui-message__image"' in response.text
+    assert 'src="/uploads/foto.png"' in response.text
+    assert 'loading="lazy"' in response.text
+    assert 'href="/uploads/manual.pdf"' in response.text
+    assert response.text.count("Abrir anexo") >= 1

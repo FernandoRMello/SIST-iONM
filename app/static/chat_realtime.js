@@ -19,10 +19,19 @@
     author.append(avatar(message, message.username), make('strong', '', message.full_name || message.username || 'Usuário'));
     article.append(author, make('p', '', message.content || ''));
     if (message.attachment_path) {
-      const attachment = make('a', 'ui-message__attachment', 'Abrir anexo');
+      const attachment = make('a', message.attachment_is_image ? 'ui-message__image-link' : 'ui-message__attachment');
       attachment.href = `/${message.attachment_path}`;
       attachment.target = '_blank';
       attachment.rel = 'noopener';
+      if (message.attachment_is_image) {
+        const image = make('img', 'ui-message__image');
+        image.src = `/${message.attachment_path}`;
+        image.alt = 'Imagem anexada';
+        image.loading = 'lazy';
+        attachment.append(image);
+      } else {
+        attachment.textContent = 'Abrir anexo';
+      }
       article.append(attachment);
     }
     article.append(make('small', '', message.created_at || ''));

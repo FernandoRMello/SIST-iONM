@@ -636,6 +636,21 @@ body.bitrix-chat-open .bitrix-chat-panel {
   margin: var(--space-1) 0 0;
 }
 
+.ui-message__image-link {
+  display: block;
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.ui-message__image {
+  display: block;
+  width: min(100%, 320px);
+  max-height: 280px;
+  object-fit: cover;
+}
+
 .bitrix-chat-form {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

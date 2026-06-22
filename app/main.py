@@ -33,7 +33,7 @@ from app.features.catalog_import.service import (
 )
 
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260622.5"
+ASSET_VERSION = "20260622.6"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -45,9 +45,10 @@ UPLOAD_DIR = BASE_DIR / "uploads"
 DB_PATH = DATA_DIR / "overpriceon_web.db"
 MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024
 CHAT_ATTACHMENT_EXTENSIONS = {
-    ".csv", ".doc", ".docx", ".jpeg", ".jpg", ".pdf", ".png",
+    ".csv", ".doc", ".docx", ".gif", ".jpeg", ".jpg", ".pdf", ".png",
     ".ppt", ".pptx", ".txt", ".webp", ".xls", ".xlsx", ".zip",
 }
+CHAT_IMAGE_EXTENSIONS = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
 
 for folder in [DATA_DIR, PDF_DIR, XML_DIR, UPLOAD_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
@@ -447,8 +448,19 @@ def chat_message_payload(message_id):
         "avatar_path": row.get("avatar_path") or "",
         "content": row.get("content") or "",
         "attachment_path": row.get("attachment_path") or "",
+        "attachment_is_image": is_chat_image(row.get("attachment_path")),
         "created_at": row.get("created_at") or "",
     }
+
+
+def is_chat_image(attachment_path):
+    return Path(str(attachment_path or "")).suffix.lower() in CHAT_IMAGE_EXTENSIONS
+
+
+def mark_chat_images(messages):
+    for message in messages:
+        message["attachment_is_image"] = is_chat_image(message.get("attachment_path"))
+    return messages
 
 
 async def publish_chat_message(message_id, sender_id):
@@ -1420,6 +1432,7 @@ def chat(request: Request, room_id: int = None, page: int = 1, page_size: int = 
         LIMIT ? OFFSET ?
     """, (room_id, pager["page_size"], offset))
     msgs.reverse()
+    mark_chat_images(msgs)
 
     return render(request,"chat.html",{
         "rooms": rooms,
@@ -1632,6 +1645,7 @@ def chat_messages(request: Request, room_id: int, page: int = 1, page_size: int 
         LIMIT ? OFFSET ?
     """, (room_id, pager["page_size"], offset))
     rows.reverse()
+    mark_chat_images(rows)
     return {"ok": True, "messages": rows, "pagination": pager}
 
 

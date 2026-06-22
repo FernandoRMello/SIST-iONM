@@ -57,6 +57,9 @@ def test_chat_script_preserves_conversation_context_and_attachments() -> None:
         "bitrixChatSubtitle",
         "classList.add('active')",
         "attachment_path",
+        "attachment_is_image",
+        "ui-message__image",
+        "image.loading = 'lazy'",
     ):
         assert snippet in source
 

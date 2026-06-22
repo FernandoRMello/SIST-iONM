@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const navigation = require('../../app/shared/web/static/js/shell-navigation.js');
@@ -58,4 +60,16 @@ test('returns only missing asset URLs without duplicates', () => {
   );
 
   assert.deepEqual(missing, ['http://127.0.0.1:8000/assets/css/crm.css?v=1']);
+});
+
+test('only the latest request clears the shared loading state', () => {
+  const source = fs.readFileSync(
+    path.resolve(__dirname, '../../app/shared/web/static/js/shell-navigation.js'),
+    'utf8',
+  );
+
+  assert.match(
+    source,
+    /if \(activeController === controller\) \{[\s\S]*main\.removeAttribute\('aria-busy'\);[\s\S]*main\.classList\.remove\('ui-content--loading'\);[\s\S]*\}/,
+  );
 });

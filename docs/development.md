@@ -46,15 +46,29 @@ O comando de mypy é reservado ao backend modular quando `app/core` e `scripts` 
 
 ```bash
 node --check app/static/chat_realtime.js
+node --test tests/js/shell-navigation.test.js
 git diff --check
 ```
+
+## Navegação pelo menu e chat persistente
+
+Os links do menu lateral atualizam apenas o conteúdo central. Para validar manualmente:
+
+1. Abra o chat e mantenha uma conversa selecionada.
+2. Navegue por Dashboard, Clientes e Pipeline usando somente o menu lateral.
+3. Confirme que o painel e os badges do chat permanecem no mesmo estado.
+4. Use Voltar e Avançar e confira título, breadcrumb e item ativo.
+5. Envie uma imagem e um PDF; a imagem deve aparecer como miniatura e o PDF como link.
+
+PNG, JPG/JPEG, GIF e WebP são imagens inline. Todos os anexos mantêm o limite de 10 MiB. Se a navegação dinâmica falhar, o sistema recarrega a página normalmente.
 
 ## Banco de desenvolvimento
 
 - Nunca teste escrita diretamente em `data/overpriceon_web.db`.
 - Os fixtures copiam o banco para diretório temporário.
 - SHA-256 do baseline inicial: `64F39752F02FA53580D87E6EF0E61A3441BE7FC0C31EB6DD5117A1F7A9E4DE18`.
-- SHA-256 observado antes e depois desta entrega, em 22/06/2026: `7A2503EC5457F08B2BB569C97A42FAF813C44E5870218672A7683D1AA5BB3DCF`.
+- SHA-256 observado antes e depois da entrega de importação, em 22/06/2026: `7A2503EC5457F08B2BB569C97A42FAF813C44E5870218672A7683D1AA5BB3DCF`.
+- O hash do banco em uso muda quando o servidor local grava dados. Capture e compare o hash dentro da janela da operação que estiver auditando; não restaure um hash histórico sobre dados ativos.
 - Antes de migração ou importação, faça cópia offline e valide contagens/valores.
 
 ## Importação por Excel

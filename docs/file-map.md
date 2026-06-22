@@ -11,6 +11,7 @@ app/shared/web/templates/components macros Jinja
 app/shared/web/templates/errors/    páginas 400/403/404/500
 app/shared/web/static/css/           design system e módulos visuais
 app/shared/web/static/js/            comportamento progressivo
+app/shared/web/static/js/shell-navigation.js navegação central com shell persistente
 app/shared/web/static/icons/         sprite SVG local
 app/static/chat_realtime.js          cliente WebSocket
 tests/characterization/              inventário e preservação de rotas/render
@@ -51,6 +52,14 @@ tests/performance/                   budgets de consulta, paginação e cache
 6. Mensagens e dados de usuário entram no DOM por `textContent`, nunca por HTML dinâmico.
 7. Rode o teste específico, depois `tests/web`, `tests/performance` e `tests/characterization`.
 8. Confira o SHA-256 do banco-fonte antes de entregar.
+
+## Navegação persistente do shell
+
+`shell-navigation.js` intercepta exclusivamente links `data-nav-item` do menu. Ele mantém menu, topbar e chat montados, troca `#main-content`, sincroniza título, breadcrumb, histórico e assets específicos e emite `sistionm:content-updated`.
+
+Scripts que ligam eventos a elementos de página devem ser idempotentes: execute na carga tradicional e no evento `sistionm:content-updated`, marcando cada elemento com `data-ready`. Formulários, downloads e links fora do menu não devem ser interceptados. Qualquer falha na resposta ou em assets deve voltar à navegação tradicional.
+
+No chat, `attachment_is_image` é calculado no backend. PNG, JPG/JPEG, WebP e GIF são exibidos como miniaturas; os demais formatos permanecem como links.
 
 ## Importação de clientes e fornecedores
 

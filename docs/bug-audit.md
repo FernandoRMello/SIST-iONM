@@ -24,6 +24,8 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 | BUG-014 | Alta (usabilidade) | Chat flutuante | O contêiner da conversa mantinha altura mínima pelo conteúdo; mensagens empurravam o formulário para fora do painel recortado. | A linha de mensagens pode encolher e rolar, mantendo o compositor sempre dentro do painel. | `tests/web/test_accessibility_contract.py::test_floating_chat_keeps_the_message_composer_inside_the_panel` |
 | BUG-015 | Média | Notificações do chat | O sino acumulava notificações por sala, enquanto os contatos eram identificados por usuário e seus badges não recebiam chave. | Notificação privada é associada a `user:<remetente>` e zerada ao abrir esse contato. | `tests/web/test_portal_pages.py::test_chat_notifications_are_assigned_to_the_sender_contact` |
 | BUG-016 | Alta (segurança) | Anexos do chat | O endpoint legado aceitava qualquer extensão, sem limite, preservava o nome fornecido e não publicava a mensagem em tempo real. | Lista segura de formatos, máximo de 10 MiB, nome físico aleatório, autorização antes do upload e broadcast/notificação unificados. | `tests/web/test_chat_delivery.py` |
+| BUG-017 | Média (desempenho/UX) | Navegação | Cada clique do menu recriava todo o shell e interrompia o estado vivo do chat. | Navegação progressiva troca somente o conteúdo central, sincroniza histórico/assets e usa recarga completa como fallback. | `tests/js/shell-navigation.test.js` + `tests/web/test_shell_contract.py` |
+| BUG-018 | Média (usabilidade) | Imagens no chat | Anexos de imagem apareciam apenas como link genérico. | PNG, JPG/JPEG, WebP e GIF recebem miniatura segura e clicável dentro da mensagem. | `tests/web/test_chat_delivery.py::test_full_chat_renders_image_thumbnail_but_keeps_documents_as_links` |
 
 ## Verificações transversais
 
@@ -44,5 +46,6 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 python -m pytest tests\web tests\performance tests\characterization tests\features -q
 python -m ruff check app tests
 node --check app\static\chat_realtime.js
+node --test tests\js\shell-navigation.test.js
 git diff --check
 ```

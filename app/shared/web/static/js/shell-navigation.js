@@ -138,9 +138,11 @@
       if (error?.name === 'AbortError') return false;
       return fallback(url);
     } finally {
-      if (activeController === controller) activeController = null;
-      main.removeAttribute('aria-busy');
-      main.classList.remove('ui-content--loading');
+      if (activeController === controller) {
+        activeController = null;
+        main.removeAttribute('aria-busy');
+        main.classList.remove('ui-content--loading');
+      }
     }
   }
 

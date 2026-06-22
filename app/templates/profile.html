@@ -7,6 +7,8 @@
 <link rel="stylesheet" href="/assets/css/portal.css?v={{ asset_version }}">
 {% endblock %}
 
+{% block page_scripts %}<script src="/assets/js/profile-avatar-editor.js?v={{ asset_version }}" defer></script>{% endblock %}
+
 {% block content %}
 <div class="ui-section">
   {{ page_header(
@@ -29,7 +31,7 @@
     <div>
       <h2>Foto do perfil</h2>
       <p>Ela aparece no chat e nos registros internos.</p>
-      <form method="post" action="/profile/avatar" enctype="multipart/form-data">
+      <form id="profileAvatarForm" method="post" action="/profile/avatar" enctype="multipart/form-data">
         <label class="ui-field" for="avatar">
           <span class="ui-field__label">Escolher imagem</span>
           <input
@@ -41,7 +43,16 @@
             required
           >
         </label>
-        <button class="ui-button ui-button--secondary" type="submit">
+        <section class="ui-avatar-editor" id="profileAvatarEditor" hidden>
+          <canvas class="ui-avatar-editor__canvas" id="profileAvatarCanvas" width="320" height="320" aria-label="Prévia do recorte da foto"></canvas>
+          <label class="ui-field" for="profileAvatarZoom"><span class="ui-field__label">Zoom</span><input id="profileAvatarZoom" type="range" min="1" max="3" step="0.01" value="1"></label>
+          <p id="profileAvatarStatus" aria-live="polite"></p>
+          <div class="ui-feed-actions">
+            <button class="ui-button ui-button--secondary" type="button" data-avatar-action="cancel">Cancelar</button>
+            <button class="ui-button ui-button--primary" type="submit">Salvar foto</button>
+          </div>
+        </section>
+        <button class="ui-button ui-button--secondary" type="submit" data-avatar-fallback>
           Atualizar foto
         </button>
       </form>

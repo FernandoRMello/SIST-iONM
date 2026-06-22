@@ -1,0 +1,1 @@
+"""Profile avatar processing feature."""

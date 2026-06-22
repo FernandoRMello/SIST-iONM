@@ -22,6 +22,14 @@ def test_portal_templates_are_labelled_and_have_no_inline_handlers() -> None:
     assert 'aria-live="polite"' in sources["chat.html"]
     assert "attachment_path" in sources["chat.html"]
     assert 'for="avatar"' in sources["profile.html"]
+    for snippet in (
+        'id="profileAvatarEditor"',
+        'id="profileAvatarCanvas"',
+        'id="profileAvatarZoom"',
+        'data-avatar-action="cancel"',
+        'aria-live="polite"',
+    ):
+        assert snippet in sources["profile.html"]
     assert "ui-org-fallback" in sources["orgchart.html"]
 
 

@@ -31,9 +31,10 @@ from app.features.catalog_import.service import (
     import_rows,
     parse_workbook,
 )
+from app.features.profile_avatar.service import AvatarValidationError, process_avatar
 
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260622.8"
+ASSET_VERSION = "20260622.9"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -1453,12 +1454,17 @@ async def profile_avatar(request: Request, avatar: UploadFile = File(None)):
         return redirect_login()
     uid = current_user(request)["id"]
     if avatar and avatar.filename:
-        suffix = Path(avatar.filename).suffix.lower() or ".png"
-        safe_name = f"profile_{uid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{suffix}"
+        try:
+            normalized = process_avatar(await avatar.read(10 * 1024 * 1024 + 1))
+        except AvatarValidationError as exc:
+            await avatar.close()
+            return PlainTextResponse(str(exc), status_code=400)
+        safe_name = f"profile_{uid}_{secrets.token_hex(8)}.jpg"
         dest = UPLOAD_DIR / safe_name
-        dest.write_bytes(await avatar.read())
+        dest.write_bytes(normalized)
         avatar_path = f"uploads/{safe_name}"
         exec_sql("UPDATE user_profiles SET avatar_path=? WHERE user_id=?", (avatar_path, uid))
+        await avatar.close()
     return RedirectResponse("/profile", status_code=303)
 
 

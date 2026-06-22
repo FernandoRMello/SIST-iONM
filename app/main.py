@@ -799,6 +799,8 @@ def init_db():
 def init_portal_modules():
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_likes (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,created_at TEXT,UNIQUE(post_id,user_id))""")
+    exec_sql("""CREATE TABLE IF NOT EXISTS feed_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,reaction TEXT CHECK(reaction IN ('like','dislike')),created_at TEXT,UNIQUE(post_id,user_id))""")
+    exec_sql("""INSERT OR IGNORE INTO feed_reactions(post_id,user_id,reaction,created_at) SELECT post_id,user_id,'like',created_at FROM feed_likes""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_comments (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,content TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS departments (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,parent_id INTEGER,manager_user_id INTEGER)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS user_profiles (user_id INTEGER PRIMARY KEY,full_name TEXT,email TEXT,phone TEXT,role_title TEXT,department_id INTEGER,bio TEXT,avatar_path TEXT)""")
@@ -1358,8 +1360,18 @@ def dashboard(request: Request):
 @app.get("/feed", response_class=HTMLResponse)
 def feed(request: Request):
     if not require_login(request): return redirect_login()
-    posts = q("""SELECT fp.*, u.username, up.full_name,(SELECT COUNT(*) FROM feed_likes fl WHERE fl.post_id=fp.id) AS likes_count FROM feed_posts fp LEFT JOIN users u ON u.id=fp.user_id LEFT JOIN user_profiles up ON up.user_id=u.id ORDER BY fp.id DESC""")
-    comments = q("""SELECT fc.*, u.username, up.full_name FROM feed_comments fc LEFT JOIN users u ON u.id=fc.user_id LEFT JOIN user_profiles up ON up.user_id=u.id ORDER BY fc.id ASC""")
+    user_id = current_user(request)["id"]
+    posts = q("""
+        SELECT fp.*, u.username, up.full_name, up.avatar_path,
+               (SELECT COUNT(*) FROM feed_reactions fr WHERE fr.post_id=fp.id AND fr.reaction='like') AS likes_count,
+               (SELECT COUNT(*) FROM feed_reactions fr WHERE fr.post_id=fp.id AND fr.reaction='dislike') AS dislikes_count,
+               (SELECT reaction FROM feed_reactions fr WHERE fr.post_id=fp.id AND fr.user_id=?) AS current_reaction
+        FROM feed_posts fp
+        LEFT JOIN users u ON u.id=fp.user_id
+        LEFT JOIN user_profiles up ON up.user_id=u.id
+        ORDER BY fp.id DESC
+    """, (user_id,))
+    comments = q("""SELECT fc.*, u.username, up.full_name, up.avatar_path FROM feed_comments fc LEFT JOIN users u ON u.id=fc.user_id LEFT JOIN user_profiles up ON up.user_id=u.id ORDER BY fc.id ASC""")
     by_post = {}
     for c in comments: by_post.setdefault(c["post_id"], []).append(c)
     return render(request, "feed.html", {"posts": posts, "comments_by_post": by_post})
@@ -1379,10 +1391,38 @@ async def feed_post(request: Request, attachment: UploadFile = File(None)):
 @app.get("/feed/like/{post_id}")
 def feed_like(request: Request, post_id:int):
     if not require_login(request): return redirect_login()
-    try:
-        exec_sql("INSERT INTO feed_likes(post_id,user_id,created_at) VALUES(?,?,?)",(post_id,current_user(request)["id"],datetime.now().isoformat(timespec="seconds")))
-    except Exception:
-        exec_sql("DELETE FROM feed_likes WHERE post_id=? AND user_id=?",(post_id,current_user(request)["id"]))
+    toggle_feed_reaction(post_id, current_user(request)["id"], "like")
+    return RedirectResponse("/feed", status_code=303)
+
+
+def toggle_feed_reaction(post_id, user_id, reaction):
+    current = q(
+        "SELECT reaction FROM feed_reactions WHERE post_id=? AND user_id=?",
+        (post_id, user_id),
+        one=True,
+    )
+    if current and current["reaction"] == reaction:
+        exec_sql("DELETE FROM feed_reactions WHERE post_id=? AND user_id=?", (post_id, user_id))
+    elif current:
+        exec_sql(
+            "UPDATE feed_reactions SET reaction=?,created_at=? WHERE post_id=? AND user_id=?",
+            (reaction, datetime.now().isoformat(timespec="seconds"), post_id, user_id),
+        )
+    else:
+        exec_sql(
+            "INSERT INTO feed_reactions(post_id,user_id,reaction,created_at) VALUES(?,?,?,?)",
+            (post_id, user_id, reaction, datetime.now().isoformat(timespec="seconds")),
+        )
+
+
+@app.post("/feed/reaction/{post_id}/{reaction}")
+def feed_reaction(request: Request, post_id: int, reaction: str):
+    if not require_login(request): return redirect_login()
+    if reaction not in {"like", "dislike"}:
+        return PlainTextResponse("Reação inválida", status_code=400)
+    if not q("SELECT id FROM feed_posts WHERE id=?", (post_id,), one=True):
+        return PlainTextResponse("Publicação não encontrada", status_code=404)
+    toggle_feed_reaction(post_id, current_user(request)["id"], reaction)
     return RedirectResponse("/feed", status_code=303)
 
 @app.post("/feed/comment/{post_id}")

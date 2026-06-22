@@ -53,9 +53,11 @@
     {% for post in posts %}
     <article class="ui-card ui-feed-post">
       <header class="ui-feed-author">
-        <span class="ui-avatar">
+        {% if post.avatar_path %}
+        <img class="ui-feed-avatar" src="/{{ post.avatar_path }}" alt="">
+        {% else %}<span class="ui-avatar">
           {{ (post.full_name or post.username or '?')[:1] }}
-        </span>
+        </span>{% endif %}
         <div>
           <strong>{{ post.full_name or post.username }}</strong>
           <small>{{ post.created_at }}</small>
@@ -74,15 +76,21 @@
       {% endif %}
 
       <div class="ui-feed-tools">
-        <a href="/feed/like/{{ post.id }}">Curtir · {{ post.likes_count }}</a>
+        <form method="post" action="/feed/reaction/{{ post.id }}/like">
+          <button class="ui-feed-reaction{% if post.current_reaction == 'like' %} is-active{% endif %}" type="submit" aria-pressed="{{ 'true' if post.current_reaction == 'like' else 'false' }}" aria-label="Curtir publicação">&#128077; Curtir · {{ post.likes_count }}</button>
+        </form>
+        <form method="post" action="/feed/reaction/{{ post.id }}/dislike">
+          <button class="ui-feed-reaction{% if post.current_reaction == 'dislike' %} is-active{% endif %}" type="submit" aria-pressed="{{ 'true' if post.current_reaction == 'dislike' else 'false' }}" aria-label="Não curtir publicação">&#128078; Não curtir · {{ post.dislikes_count }}</button>
+        </form>
       </div>
 
       <div class="ui-feed-comments">
         {% for comment in comments_by_post.get(post.id, []) %}
-        <p>
-          <strong>{{ comment.full_name or comment.username }}:</strong>
-          {{ comment.content }}
-        </p>
+        <div class="ui-feed-comment">
+          {% if comment.avatar_path %}<img class="ui-feed-comment-avatar" src="/{{ comment.avatar_path }}" alt="">
+          {% else %}<span class="ui-avatar">{{ (comment.full_name or comment.username or '?')[:1] }}</span>{% endif %}
+          <p><strong>{{ comment.full_name or comment.username }}:</strong> {{ comment.content }}</p>
+        </div>
         {% endfor %}
 
         <form method="post" action="/feed/comment/{{ post.id }}">

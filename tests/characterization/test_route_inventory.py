@@ -50,6 +50,7 @@ EXPECTED_HTTP_ROUTES = {
     ("POST", "/chat/send"),
     ("POST", "/feed/comment/{post_id}"),
     ("POST", "/feed/post"),
+    ("POST", "/feed/reaction/{post_id}/{reaction}"),
     ("POST", "/finance/costs/add"),
     ("POST", "/login"),
     ("POST", "/opportunities/create"),

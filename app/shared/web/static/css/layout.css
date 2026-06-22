@@ -577,6 +577,7 @@ body.bitrix-chat-open .bitrix-chat-panel {
 .bitrix-chat-conversation {
   display: grid;
   min-width: 0;
+  min-height: 0;
   grid-template-rows: minmax(0, 1fr) auto;
   background: var(--color-canvas);
 }

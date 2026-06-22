@@ -52,6 +52,17 @@ def test_shared_css_owns_shell_components_previously_in_legacy_css() -> None:
         assert selector in combined
 
 
+def test_floating_chat_keeps_the_message_composer_inside_the_panel() -> None:
+    source = (SHARED_CSS / "layout.css").read_text(encoding="utf-8")
+    conversation_rule = re.search(
+        r"\.bitrix-chat-conversation\s*\{(?P<body>[^}]*)\}",
+        source,
+    )
+
+    assert conversation_rule is not None
+    assert re.search(r"\bmin-height\s*:\s*0\s*;", conversation_rule.group("body"))
+
+
 def test_javascript_avoids_dynamic_html_execution() -> None:
     sources = []
     for root in JAVASCRIPT_ROOTS:

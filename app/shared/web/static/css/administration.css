@@ -58,6 +58,22 @@
   min-width: min(100%, 320px);
 }
 
+.ui-import-panel {
+  border-left: 4px solid var(--color-teal-600);
+}
+
+.ui-import-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+}
+
+.ui-feedback ul,
+.ui-feedback p {
+  margin: 0;
+}
+
 .ui-row-actions a {
   white-space: nowrap;
 }
@@ -110,9 +126,15 @@
 @media (max-width: 640px) {
   .ui-admin-section__header,
   .ui-admin-toolbar,
-  .ui-backup-actions {
+  .ui-backup-actions,
+  .ui-import-form {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .ui-import-form {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .ui-admin-section__header .ui-button,

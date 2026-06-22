@@ -17,14 +17,23 @@ from fastapi.responses import (
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
+    Response,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from jinja2 import ChoiceLoader, FileSystemLoader
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.features.catalog_import.service import (
+    MAX_FILE_BYTES,
+    SpreadsheetImportError,
+    build_template,
+    import_rows,
+    parse_workbook,
+)
+
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260618"
+ASSET_VERSION = "20260622"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -1619,6 +1628,78 @@ async def websocket_chat(websocket: WebSocket, room_id: int):
 
 # ---------------- Cadastros ----------------
 
+CATALOG_IMPORT_TABLES = {"clients", "suppliers"}
+
+
+def catalog_import_authorized(request: Request, table: str) -> bool:
+    if table == "clients":
+        return require_login(request)
+    return require_admin(request)
+
+
+def catalog_import_feedback(request: Request, table: str):
+    feedback = request.session.get("catalog_import_feedback")
+    if feedback and feedback.get("table") == table:
+        request.session.pop("catalog_import_feedback", None)
+        return feedback
+    return None
+
+
+@app.get("/cadastros/{table}/import-template")
+def catalog_import_template(request: Request, table: str):
+    if not require_login(request):
+        return redirect_login()
+    if table not in CATALOG_IMPORT_TABLES:
+        return PlainTextResponse("Importação não encontrada", status_code=404)
+    if not catalog_import_authorized(request, table):
+        return PlainTextResponse("Sem permissão", status_code=403)
+
+    filename = "modelo_clientes.xlsx" if table == "clients" else "modelo_fornecedores.xlsx"
+    return Response(
+        content=build_template(table),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.post("/cadastros/{table}/import")
+async def catalog_import_upload(
+    request: Request,
+    table: str,
+    file: UploadFile = File(...),
+):
+    if not require_login(request):
+        return redirect_login()
+    if table not in CATALOG_IMPORT_TABLES:
+        return PlainTextResponse("Importação não encontrada", status_code=404)
+    if not catalog_import_authorized(request, table):
+        return PlainTextResponse("Sem permissão", status_code=403)
+
+    feedback = {
+        "table": table,
+        "created": 0,
+        "updated": 0,
+        "ignored": 0,
+        "errors": [],
+    }
+    try:
+        if not file.filename or not file.filename.lower().endswith(".xlsx"):
+            raise SpreadsheetImportError("Use um arquivo .xlsx baseado no modelo oficial.")
+        content = await file.read(MAX_FILE_BYTES + 1)
+        rows = parse_workbook(table, content)
+        with db() as connection:
+            result = import_rows(connection, table, rows)
+        feedback.update(result.as_dict())
+    except SpreadsheetImportError as exc:
+        feedback["errors"] = [str(exc)]
+    except sqlite3.DatabaseError:
+        feedback["errors"] = ["Falha ao gravar a importação. Nenhum dado foi alterado."]
+    finally:
+        await file.close()
+
+    request.session["catalog_import_feedback"] = feedback
+    return RedirectResponse(f"/cadastros/{table}", status_code=303)
+
 @app.get("/cadastros/{table}", response_class=HTMLResponse)
 def crud_list(request: Request, table: str, page: int = 1, page_size: int = 25):
     if not require_login(request):
@@ -1632,7 +1713,14 @@ def crud_list(request: Request, table: str, page: int = 1, page_size: int = 25):
         f"SELECT * FROM {table} ORDER BY id DESC LIMIT ? OFFSET ?",
         (pager["page_size"], offset),
     )
-    return render(request, "crud.html", {"table": table, "meta": CRUDS[table], "rows": rows, "edit": None, "pager": pager})
+    return render(request, "crud.html", {
+        "table": table,
+        "meta": CRUDS[table],
+        "rows": rows,
+        "edit": None,
+        "pager": pager,
+        "import_feedback": catalog_import_feedback(request, table),
+    })
 
 
 @app.get("/cadastros/{table}/edit/{record_id}", response_class=HTMLResponse)
@@ -1649,7 +1737,14 @@ def crud_edit(request: Request, table: str, record_id: int, page: int = 1, page_
         (pager["page_size"], offset),
     )
     edit = q(f"SELECT * FROM {table} WHERE id=?", (record_id,), one=True)
-    return render(request, "crud.html", {"table": table, "meta": CRUDS[table], "rows": rows, "edit": edit, "pager": pager})
+    return render(request, "crud.html", {
+        "table": table,
+        "meta": CRUDS[table],
+        "rows": rows,
+        "edit": edit,
+        "pager": pager,
+        "import_feedback": catalog_import_feedback(request, table),
+    })
 
 
 @app.post("/cadastros/{table}/save-form")

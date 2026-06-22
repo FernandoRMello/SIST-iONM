@@ -4,6 +4,7 @@
 
 ```text
 app/main.py                         aplicação legada, rotas e regras ainda monolíticas
+app/features/catalog_import/       importação Excel de clientes e fornecedores
 app/templates/                      18 templates compatíveis
 app/shared/web/templates/layouts/   shell principal
 app/shared/web/templates/components macros Jinja
@@ -29,7 +30,7 @@ tests/performance/                   budgets de consulta, paginação e cache
 | `chat.html` | `/chat`, privados e mensagens | `rooms`, `users`, `messages`, `room_id`, `pager` | `portal.css`, `chat_realtime.js` | portal + performance |
 | `profile.html` | `/profile`, save/avatar | `profile`, `departments` | `portal.css` | portal |
 | `orgchart.html` | `/orgchart` | `departments`, `people` | `portal.css` | portal |
-| `crud.html` | `/cadastros/{table}` e edit/save/delete | `table`, `meta`, `rows`, `edit`, `pager` | `administration.css`, forms/tables | administração + paginação |
+| `crud.html` | `/cadastros/{table}`, edit/save/delete e importação | `table`, `meta`, `rows`, `edit`, `pager`, `import_feedback` | `administration.css`, forms/tables | administração + paginação/importação |
 | `settings.html` | `/settings` e usuários/e-mail/backup | `users`, `sellers`, `edit_user`, `role_emails` | `administration.css`, forms/tables | administração |
 | `permissions.html` | `/admin/permissions` | `rows` | `administration.css`, forms/tables | administração |
 | `opportunities.html` | `/opportunities`, create/move | `opps`, `kanban`, `statuses`, cadastros, `pager` | `crm.css`, `forms.js` | `test_crm_pages.py` + budget |
@@ -50,6 +51,18 @@ tests/performance/                   budgets de consulta, paginação e cache
 6. Mensagens e dados de usuário entram no DOM por `textContent`, nunca por HTML dinâmico.
 7. Rode o teste específico, depois `tests/web`, `tests/performance` e `tests/characterization`.
 8. Confira o SHA-256 do banco-fonte antes de entregar.
+
+## Importação de clientes e fornecedores
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app/features/catalog_import/service.py` | esquema das colunas, geração do modelo `.xlsx`, validação, normalização do documento e transação de inclusão/atualização |
+| `app/main.py` | autorização, upload limitado, download do modelo e feedback via sessão |
+| `app/templates/crud.html` | botões, formulário progressivo e resumo do processamento |
+| `tests/features/test_catalog_import_service.py` | regras de planilha e persistência |
+| `tests/web/test_catalog_import.py` | rotas, permissões, download, upload e apresentação |
+
+O documento normalizado é a chave de atualização. O serviço cria novos registros, atualiza os existentes e ignora duplicidades dentro da mesma planilha. Erros estruturais impedem qualquer escrita.
 
 ## Próxima organização por domínio
 

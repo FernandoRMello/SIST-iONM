@@ -35,7 +35,7 @@ Acesse `http://IP_DO_SERVIDOR:8000/`. Para uso apenas na própria máquina, pref
 ## Verificação
 
 ```bash
-python -m pytest tests/web tests/performance tests/characterization -q
+python -m pytest tests/web tests/performance tests/characterization tests/features -q
 python -m ruff check app tests
 python -m mypy app/core scripts
 ```
@@ -53,8 +53,22 @@ git diff --check
 
 - Nunca teste escrita diretamente em `data/overpriceon_web.db`.
 - Os fixtures copiam o banco para diretório temporário.
-- SHA-256 de referência: `64F39752F02FA53580D87E6EF0E61A3441BE7FC0C31EB6DD5117A1F7A9E4DE18`.
+- SHA-256 do baseline inicial: `64F39752F02FA53580D87E6EF0E61A3441BE7FC0C31EB6DD5117A1F7A9E4DE18`.
+- SHA-256 observado antes e depois desta entrega, em 22/06/2026: `7A2503EC5457F08B2BB569C97A42FAF813C44E5870218672A7683D1AA5BB3DCF`.
 - Antes de migração ou importação, faça cópia offline e valide contagens/valores.
+
+## Importação por Excel
+
+Nas telas **Clientes** e **Fornecedores**, baixe primeiro o modelo oficial e envie somente arquivos `.xlsx`. Nome e CPF/CNPJ são obrigatórios; o documento identifica se o registro deve ser criado ou atualizado.
+
+- limite por arquivo: 5 MiB;
+- limite por planilha: 5.000 linhas de dados;
+- linhas vazias são ignoradas;
+- duplicidades na mesma planilha são reportadas e ignoradas;
+- clientes podem ser importados por usuário autenticado;
+- fornecedores exigem perfil administrador.
+
+A importação ocorre em uma única transação. Testes automatizados usam cópias temporárias do banco e nunca devem apontar para o arquivo de uso corrente.
 
 ## Fluxo recomendado ao Dev Junior
 

@@ -10,6 +10,7 @@ Verificação local em 18/06/2026.
 | Starlette | 1.3.1 |
 | Jinja2 | 3.1.6 |
 | Uvicorn | 0.49.0 |
+| openpyxl | 3.1.5 |
 | Pytest | 9.1.0 |
 | Git local | 2.53.0.windows.2 |
 

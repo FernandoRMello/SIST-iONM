@@ -22,7 +22,48 @@
   <a class="ui-button ui-button--primary" href="#record-form">
     {{ icon('plus', 16) }} Novo registro
   </a>
+  {% if table in ['clients', 'suppliers'] and (table == 'clients' or user.role == 'admin') %}
+  <a class="ui-button ui-button--secondary" href="/cadastros/{{ table }}/import-template">
+    {{ icon('arrow-right', 16) }} Baixar modelo Excel
+  </a>
+  <button
+    class="ui-button ui-button--secondary"
+    type="button"
+    data-disclosure
+    aria-controls="catalog-import-panel"
+    aria-expanded="false"
+  >Importar planilha</button>
+  {% endif %}
   {% endcall %}
+
+  {% if import_feedback %}
+  <section class="ui-feedback {% if import_feedback.errors %}ui-feedback--warning{% else %}ui-feedback--success{% endif %}" role="status">
+    <strong>{% if import_feedback.errors and not (import_feedback.created or import_feedback.updated) %}Importação não concluída{% else %}Importação concluída{% endif %}</strong>
+    <p>{{ import_feedback.created }} criado(s), {{ import_feedback.updated }} atualizado(s) e {{ import_feedback.ignored }} ignorado(s).</p>
+    {% if import_feedback.errors %}
+    <ul>{% for error in import_feedback.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if table in ['clients', 'suppliers'] and (table == 'clients' or user.role == 'admin') %}
+  <section class="ui-card ui-admin-section ui-import-panel" id="catalog-import-panel" hidden>
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>Importar planilha</h2>
+        <p>Use o modelo oficial em formato .xlsx. Registros existentes serão atualizados pelo documento.</p>
+      </div>
+    </header>
+    <form method="post" action="/cadastros/{{ table }}/import" enctype="multipart/form-data" class="ui-import-form">
+      <label class="ui-field" for="catalog-import-file">
+        <span class="ui-field__label">Planilha Excel</span>
+        <input class="ui-field__control" id="catalog-import-file" type="file" name="file" accept=".xlsx" required>
+        <span class="ui-field__hint">Máximo de 5 MiB e 5.000 linhas.</span>
+      </label>
+      <button class="ui-button ui-button--primary" type="submit">Processar importação</button>
+    </form>
+  </section>
+  {% endif %}
 
   <section class="ui-card ui-admin-section" id="record-form">
     <header class="ui-admin-section__header">

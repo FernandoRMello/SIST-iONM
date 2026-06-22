@@ -23,7 +23,7 @@
   <script src="/assets/js/app-shell.js?v={{ asset_version }}" defer></script>
   <script src="/assets/js/navigation.js?v={{ asset_version }}" defer></script>
   {% block page_scripts %}{% endblock %}
-  {% if user %}<script src="/static/chat_realtime.js" defer></script>{% endif %}
+  {% if user %}<script src="/static/chat_realtime.js?v={{ asset_version }}" defer></script>{% endif %}
 </head>
 <body>
 {% if user %}
@@ -144,7 +144,10 @@
       </aside>
       <section class="bitrix-chat-conversation" aria-label="Mensagens">
         <div class="bitrix-chat-messages" id="bitrixChatMessages" aria-live="polite"></div>
-        <form class="bitrix-chat-form" id="bitrixChatForm">
+        <form class="bitrix-chat-form" id="bitrixChatForm" enctype="multipart/form-data">
+          <p class="ui-chat-status ui-chat-form-status" id="bitrixChatStatus" aria-live="polite">Conectando…</p>
+          <input class="ui-visually-hidden" id="bitrixChatAttachment" name="attachment" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip">
+          <label class="ui-chat-attachment" for="bitrixChatAttachment" title="Anexar arquivo"><span data-file-label>Anexar</span></label>
           <label class="ui-visually-hidden" for="bitrixChatInput">Mensagem</label>
           <input id="bitrixChatInput" placeholder="Digite uma mensagem" autocomplete="off">
           <button class="ui-button ui-button--primary" type="submit" aria-label="Enviar mensagem">{{ icon('arrow-right', 18) }}</button>

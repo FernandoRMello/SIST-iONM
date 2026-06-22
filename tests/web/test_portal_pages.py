@@ -61,6 +61,34 @@ def test_chat_script_preserves_conversation_context_and_attachments() -> None:
         assert snippet in source
 
 
+def test_chat_notifications_are_assigned_to_the_sender_contact() -> None:
+    source = CHAT_JS.read_text(encoding="utf-8")
+
+    assert "badge.dataset.roomBadge = `user:${user.id}`" in source
+    assert "`user:${payload.message.user_id}`" in source
+    assert "state.unread[`user:${userId}`] = 0" in source
+
+
+def test_both_chat_composers_offer_accessible_file_attachments() -> None:
+    floating = (
+        REPO_ROOT / "app" / "shared" / "web" / "templates" / "layouts" / "base.html"
+    ).read_text(encoding="utf-8")
+    full = (TEMPLATES / "chat.html").read_text(encoding="utf-8")
+
+    for source, field_id in (
+        (floating, "bitrixChatAttachment"),
+        (full, "fullChatAttachment"),
+    ):
+        assert f'id="{field_id}"' in source
+        assert 'name="attachment"' in source
+        assert 'type="file"' in source
+        assert f'for="{field_id}"' in source
+    assert 'id="bitrixChatStatus"' in floating
+    assert "['chatConnectionStatus', 'bitrixChatStatus']" in CHAT_JS.read_text(
+        encoding="utf-8"
+    )
+
+
 def test_chat_window_uses_the_declared_grid_layout() -> None:
     source = PORTAL_CSS.read_text(encoding="utf-8")
 

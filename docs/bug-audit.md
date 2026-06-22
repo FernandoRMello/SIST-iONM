@@ -1,6 +1,6 @@
 # Auditoria de bugs, segurança e acessibilidade
 
-Data da auditoria: 18/06/2026.
+Data da auditoria: 22/06/2026.
 
 Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de renderização, paginação, consultas críticas e banco SQLite-fonte. As correções abaixo possuem regressão automatizada; itens apenas suspeitos não são declarados como corrigidos.
 
@@ -21,13 +21,16 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 | BUG-011 | Média | Respostas web | Não havia CSP, proteção contra framing, `nosniff`, política de referenciador ou restrição de APIs do navegador. | Headers defensivos aplicados pelo middleware; HTML autenticado e público usa `no-store`. | `tests/web/test_accessibility_contract.py::test_html_responses_include_baseline_security_headers` |
 | BUG-012 | Média | Design system | `style.css` legado ainda controlava chat lateral e ocultação de valores, criando duas fontes visuais e risco de conflito. | Regras migradas para `layout.css`, `components.css` e `utilities.css`; arquivo e referência removidos. | `tests/web/test_accessibility_contract.py::test_shared_shell_uses_no_legacy_stylesheet_or_navigation_emoji` |
 | BUG-013 | Alta (estabilidade) | SQLite | `with sqlite3.Connection` confirmava/abortava transações, mas não fechava o handle; a suíte com cobertura expôs centenas de `ResourceWarning`. | `db()` agora é um context manager explícito e fecha a conexão em `finally`. | `tests/performance/test_connection_lifecycle.py` |
+| BUG-014 | Alta (usabilidade) | Chat flutuante | O contêiner da conversa mantinha altura mínima pelo conteúdo; mensagens empurravam o formulário para fora do painel recortado. | A linha de mensagens pode encolher e rolar, mantendo o compositor sempre dentro do painel. | `tests/web/test_accessibility_contract.py::test_floating_chat_keeps_the_message_composer_inside_the_panel` |
+| BUG-015 | Média | Notificações do chat | O sino acumulava notificações por sala, enquanto os contatos eram identificados por usuário e seus badges não recebiam chave. | Notificação privada é associada a `user:<remetente>` e zerada ao abrir esse contato. | `tests/web/test_portal_pages.py::test_chat_notifications_are_assigned_to_the_sender_contact` |
+| BUG-016 | Alta (segurança) | Anexos do chat | O endpoint legado aceitava qualquer extensão, sem limite, preservava o nome fornecido e não publicava a mensagem em tempo real. | Lista segura de formatos, máximo de 10 MiB, nome físico aleatório, autorização antes do upload e broadcast/notificação unificados. | `tests/web/test_chat_delivery.py` |
 
 ## Verificações transversais
 
 - 18 templates sem handlers JavaScript inline, assets remotos, emojis de navegação ou senha preenchida.
 - JavaScript sem `eval`, `document.write`, `insertAdjacentHTML` ou `.innerHTML`.
 - Labels, estados não dependentes apenas de cor, foco visível, `aria-live` no chat e navegação responsiva.
-- Banco-fonte preservado: SHA-256 `64F39752F02FA53580D87E6EF0E61A3441BE7FC0C31EB6DD5117A1F7A9E4DE18`.
+- Banco-fonte não é usado pelos testes; a referência corrente deve ser conferida em `docs/development.md`.
 
 ## Dívidas conhecidas, não declaradas como corrigidas
 
@@ -38,8 +41,8 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 ## Comandos de verificação
 
 ```powershell
-python -m pytest tests\web tests\performance tests\characterization -q
-python -m ruff check tests\web tests\performance tests\characterization
+python -m pytest tests\web tests\performance tests\characterization tests\features -q
+python -m ruff check app tests
 node --check app\static\chat_realtime.js
 git diff --check
 ```

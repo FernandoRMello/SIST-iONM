@@ -75,8 +75,10 @@
 
       {{ pagination(pager.page, pager.pages, '/chat?room_id=' ~ room_id ~ '&page_size=' ~ pager.page_size) }}
 
-      <form class="ui-chat-form" id="fullChatForm">
+      <form class="ui-chat-form" id="fullChatForm" enctype="multipart/form-data">
         <input type="hidden" id="fullChatRoomId" value="{{ room_id }}">
+        <input class="ui-visually-hidden" id="fullChatAttachment" name="attachment" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip">
+        <label class="ui-chat-attachment" for="fullChatAttachment" title="Anexar arquivo"><span data-file-label>Anexar</span></label>
         <label class="ui-visually-hidden" for="fullChatInput">Mensagem</label>
         <input
           class="ui-field__control"

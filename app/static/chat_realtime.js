@@ -3,8 +3,8 @@
   const byId = (id) => document.getElementById(id);
   const make = (tag, className, text) => { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; };
   const wsUrl = (path) => `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}${path}`;
-  const statusNode = () => byId('chatConnectionStatus');
-  const setStatus = (text, tone = '') => { const node = statusNode(); if (!node) return; node.setAttribute('aria-live', 'polite'); node.textContent = text; node.dataset.tone = tone; };
+  const statusNodes = () => ['chatConnectionStatus', 'bitrixChatStatus'].map(byId).filter(Boolean);
+  const setStatus = (text, tone = '') => { statusNodes().forEach((node) => { node.setAttribute('aria-live', 'polite'); node.textContent = text; node.dataset.tone = tone; }); };
   const reconnectDelay = () => Math.min(1000 * (2 ** state.reconnectAttempt++), 30000);
 
   function avatar(user, fallback) {
@@ -54,8 +54,11 @@
     const button = make('button', rail ? 'rail-contact' : 'bitrix-contact');
     button.type = 'button'; button.dataset.userId = user.id; button.title = user.full_name || user.username;
     button.addEventListener('click', () => openUser(user.id));
-    if (rail) button.append(avatar(user), make('span', 'rail-contact-badge', '0'));
-    else { const info = make('span', 'contact-info'); info.append(make('b', '', user.full_name || user.username), make('small', '', user.role || 'Usuário')); button.append(make('span', 'contact-avatar'), info, make('span', 'contact-badge', '0')); button.querySelector('.contact-avatar').append(avatar(user)); }
+    const badge = make('span', rail ? 'rail-contact-badge' : 'contact-badge', '0');
+    badge.dataset.roomBadge = `user:${user.id}`;
+    badge.hidden = true;
+    if (rail) button.append(avatar(user), badge);
+    else { const info = make('span', 'contact-info'); info.append(make('b', '', user.full_name || user.username), make('small', '', user.role || 'Usuário')); button.append(make('span', 'contact-avatar'), info, badge); button.querySelector('.contact-avatar').append(avatar(user)); }
     return button;
   }
 
@@ -103,17 +106,37 @@
     if (state.notifyWs?.readyState === WebSocket.OPEN) return;
     const socket = new WebSocket(wsUrl('/ws/notify')); state.notifyWs = socket;
     socket.onopen = () => setStatus('Conectado', 'success');
-    socket.onmessage = (event) => { const payload = JSON.parse(event.data); if (payload?.type !== 'chat_message' || Number(payload.room_id) === Number(state.currentRoomId)) return; const key = Number(payload.room_id) === Number(state.generalRoomId) ? 'general' : String(payload.room_id); state.unread[key] = (state.unread[key] || 0) + 1; updateBadges(); };
+    socket.onmessage = (event) => { const payload = JSON.parse(event.data); if (payload?.type !== 'chat_message' || Number(payload.room_id) === Number(state.currentRoomId)) return; const key = Number(payload.room_id) === Number(state.generalRoomId) ? 'general' : `user:${payload.message.user_id}`; state.unread[key] = (state.unread[key] || 0) + 1; updateBadges(); };
     socket.onerror = () => setStatus('Notificações indisponíveis', 'error');
     socket.onclose = () => setTimeout(connectNotifications, reconnectDelay());
   }
 
   async function openGeneral() { if (!await loadContext()) return; document.body.classList.add('bitrix-chat-open'); setActiveContact('general'); setConversationHeader('Chat geral', 'Todos os usuários'); state.unread.general = 0; updateBadges(); await loadMessages(state.generalRoomId); connectRoom(state.generalRoomId); }
-  async function openUser(userId) { if (!await loadContext()) return; const response = await fetch(`/chat/private-room/${userId}`); const data = await response.json(); if (!data.ok) return; const user = state.users.find((item) => Number(item.id) === Number(userId)); document.body.classList.add('bitrix-chat-open'); setActiveContact(userId); setConversationHeader(user?.full_name || user?.username || 'Usuário', 'Conversa individual'); await loadMessages(data.room_id); connectRoom(data.room_id); }
+  async function openUser(userId) { if (!await loadContext()) return; const response = await fetch(`/chat/private-room/${userId}`); const data = await response.json(); if (!data.ok) return; const user = state.users.find((item) => Number(item.id) === Number(userId)); document.body.classList.add('bitrix-chat-open'); setActiveContact(userId); setConversationHeader(user?.full_name || user?.username || 'Usuário', 'Conversa individual'); state.unread[`user:${userId}`] = 0; updateBadges(); await loadMessages(data.room_id); connectRoom(data.room_id); }
   function send(content) { if (!content || state.ws?.readyState !== WebSocket.OPEN) return false; state.ws.send(JSON.stringify({ content })); return true; }
-  function bindForm(formId, inputId) { const form = byId(formId); if (!form || form.dataset.ready) return; form.dataset.ready = '1'; form.addEventListener('submit', (event) => { event.preventDefault(); const input = byId(inputId); const value = input?.value.trim(); if (send(value)) input.value = ''; }); }
-  async function connectFullChat(roomId) { await loadContext(); bindForm('fullChatForm', 'fullChatInput'); await loadMessages(roomId); connectRoom(roomId); }
-  async function init() { await loadContext(); bindForm('bitrixChatForm', 'bitrixChatInput'); const room = Number(byId('fullChatRoomId')?.value || 0); if (room) connectFullChat(room); }
+  async function sendAttachment(content, file) {
+    const body = new FormData();
+    body.append('room_id', state.currentRoomId);
+    body.append('content', content);
+    body.append('attachment', file);
+    const response = await fetch('/chat/send', { method: 'POST', headers: { Accept: 'application/json' }, body });
+    const data = await response.json();
+    if (!response.ok || !data.ok) { setStatus(data.error || 'Não foi possível enviar o arquivo.', 'error'); return false; }
+    setStatus('Arquivo enviado', 'success');
+    return true;
+  }
+  function bindForm(formId, inputId, attachmentId) {
+    const form = byId(formId); if (!form || form.dataset.ready) return; form.dataset.ready = '1';
+    const attachment = byId(attachmentId); const label = form.querySelector('[data-file-label]');
+    attachment?.addEventListener('change', () => { if (label) label.textContent = attachment.files?.[0]?.name || 'Anexar'; });
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault(); const input = byId(inputId); const value = input?.value.trim() || ''; const file = attachment?.files?.[0];
+      if (file) { if (await sendAttachment(value, file)) { input.value = ''; attachment.value = ''; if (label) label.textContent = 'Anexar'; } return; }
+      if (send(value)) input.value = '';
+    });
+  }
+  async function connectFullChat(roomId) { await loadContext(); bindForm('fullChatForm', 'fullChatInput', 'fullChatAttachment'); await loadMessages(roomId); connectRoom(roomId); }
+  async function init() { await loadContext(); bindForm('bitrixChatForm', 'bitrixChatInput', 'bitrixChatAttachment'); const room = Number(byId('fullChatRoomId')?.value || 0); if (room) connectFullChat(room); }
   function close() { state.suspended = true; state.ws?.close(); document.body.classList.remove('bitrix-chat-open'); }
   function minimize() { document.body.classList.remove('bitrix-chat-open'); }
   function toggleNotifications() { document.body.classList.contains('bitrix-chat-open') ? minimize() : openGeneral(); }

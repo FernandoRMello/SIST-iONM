@@ -33,7 +33,7 @@ from app.features.catalog_import.service import (
 )
 
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260622.2"
+ASSET_VERSION = "20260622.3"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -43,6 +43,11 @@ PDF_DIR = BASE_DIR / "exports" / "pdf"
 XML_DIR = BASE_DIR / "exports" / "xml"
 UPLOAD_DIR = BASE_DIR / "uploads"
 DB_PATH = DATA_DIR / "overpriceon_web.db"
+MAX_CHAT_ATTACHMENT_BYTES = 10 * 1024 * 1024
+CHAT_ATTACHMENT_EXTENSIONS = {
+    ".csv", ".doc", ".docx", ".jpeg", ".jpg", ".pdf", ".png",
+    ".ppt", ".pptx", ".txt", ".webp", ".xls", ".xlsx", ".zip",
+}
 
 for folder in [DATA_DIR, PDF_DIR, XML_DIR, UPLOAD_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
@@ -444,6 +449,38 @@ def chat_message_payload(message_id):
         "attachment_path": row.get("attachment_path") or "",
         "created_at": row.get("created_at") or "",
     }
+
+
+async def publish_chat_message(message_id, sender_id):
+    payload = chat_message_payload(message_id)
+    if not payload:
+        return None
+    room_id = int(payload["room_id"])
+    await chat_manager.broadcast(room_id, payload)
+    for user_id in room_participants(room_id):
+        if int(user_id) != int(sender_id):
+            await notify_manager.notify(
+                user_id,
+                {"type": "chat_message", "room_id": room_id, "message": payload},
+            )
+    return payload
+
+
+async def save_chat_attachment(attachment):
+    if not attachment or not attachment.filename:
+        return ""
+    suffix = Path(attachment.filename).suffix.lower()
+    if suffix not in CHAT_ATTACHMENT_EXTENSIONS:
+        raise ValueError("Formato de arquivo não permitido no chat.")
+    content = await attachment.read(MAX_CHAT_ATTACHMENT_BYTES + 1)
+    if len(content) > MAX_CHAT_ATTACHMENT_BYTES:
+        raise ValueError("O anexo excede o limite de 10 MiB.")
+    safe_name = (
+        f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}_"
+        f"{secrets.token_hex(6)}{suffix}"
+    )
+    (UPLOAD_DIR / safe_name).write_bytes(content)
+    return f"uploads/{safe_name}"
 
 
 def next_number(prefix, table, column):
@@ -1403,16 +1440,33 @@ async def chat_send(request: Request, attachment: UploadFile = File(None)):
     if not user_can_access_room(user["id"], room_id):
         return PlainTextResponse("Sem permissão para este chat.", status_code=403)
 
-    content = str(f.get("content","")).strip()
-    attachment_path = ""
-    if attachment and attachment.filename:
-        safe = f"chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{attachment.filename}".replace(" ","_")
-        dest = UPLOAD_DIR / safe
-        dest.write_bytes(await attachment.read())
-        attachment_path = str(dest.relative_to(BASE_DIR)).replace("\\","/")
-    if content or attachment_path:
-        exec_sql("INSERT INTO chat_messages(room_id,user_id,content,attachment_path,created_at) VALUES(?,?,?,?,?)",
-                 (room_id, user["id"], content, attachment_path, datetime.now().isoformat(timespec="seconds")))
+    wants_json = "application/json" in request.headers.get("accept", "")
+    content = str(f.get("content", "")).strip()
+    try:
+        attachment_path = await save_chat_attachment(attachment)
+    except ValueError as exc:
+        if wants_json:
+            return JSONResponse({"ok": False, "error": str(exc)}, status_code=400)
+        return PlainTextResponse(str(exc), status_code=400)
+    finally:
+        if attachment:
+            await attachment.close()
+
+    if not content and not attachment_path:
+        if wants_json:
+            return JSONResponse(
+                {"ok": False, "error": "Digite uma mensagem ou selecione um arquivo."},
+                status_code=400,
+            )
+        return RedirectResponse(f"/chat?room_id={room_id}", status_code=303)
+
+    message_id = exec_sql(
+        "INSERT INTO chat_messages(room_id,user_id,content,attachment_path,created_at) VALUES(?,?,?,?,?)",
+        (room_id, user["id"], content, attachment_path, datetime.now().isoformat(timespec="seconds")),
+    )
+    payload = await publish_chat_message(message_id, user["id"])
+    if wants_json:
+        return {"ok": True, "message": payload}
     return RedirectResponse(f"/chat?room_id={room_id}", status_code=303)
 
 
@@ -1614,11 +1668,7 @@ async def websocket_chat(websocket: WebSocket, room_id: int):
                 INSERT INTO chat_messages(room_id,user_id,content,attachment_path,created_at)
                 VALUES(?,?,?,?,?)
             """, (room_id, user["id"], content, "", datetime.now().isoformat(timespec="seconds")))
-            payload = chat_message_payload(msg_id)
-            await chat_manager.broadcast(room_id, payload)
-            for uid in room_participants(room_id):
-                if int(uid) != int(user["id"]):
-                    await notify_manager.notify(uid, {"type": "chat_message", "room_id": room_id, "message": payload})
+            await publish_chat_message(msg_id, user["id"])
     except WebSocketDisconnect:
         chat_manager.disconnect(room_id, websocket)
     except Exception:

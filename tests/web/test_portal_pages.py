@@ -62,6 +62,7 @@ def test_chat_script_preserves_conversation_context_and_attachments() -> None:
         "image.loading = 'lazy'",
     ):
         assert snippet in source
+    assert "sistionm:content-updated" in source
 
 
 def test_chat_notifications_are_assigned_to_the_sender_contact() -> None:

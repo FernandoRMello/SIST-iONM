@@ -151,4 +151,5 @@
   function toggleNotifications() { document.body.classList.contains('bitrix-chat-open') ? minimize() : openGeneral(); }
   window.SistIonmChat = { init, openGeneral, openUser, close, minimize, toggleNotifications, connectFullChat };
   window.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('sistionm:content-updated', init);
 })();

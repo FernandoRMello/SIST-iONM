@@ -24,7 +24,7 @@
   <script src="/assets/js/navigation.js?v={{ asset_version }}" defer></script>
   <script src="/assets/js/shell-navigation.js?v={{ asset_version }}" defer></script>
   {% block page_scripts %}{% endblock %}
-  {% if user %}<script src="/static/chat_realtime.js?v={{ asset_version }}" defer></script>{% endif %}
+  {% if user %}<script src="/static/chat_notification_rules.js?v={{ asset_version }}" defer></script><script src="/static/chat_realtime.js?v={{ asset_version }}" defer></script>{% endif %}
 </head>
 <body>
 {% if user %}

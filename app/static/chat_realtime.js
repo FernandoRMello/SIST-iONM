@@ -6,6 +6,7 @@
   const statusNodes = () => ['chatConnectionStatus', 'bitrixChatStatus'].map(byId).filter(Boolean);
   const setStatus = (text, tone = '') => { statusNodes().forEach((node) => { node.setAttribute('aria-live', 'polite'); node.textContent = text; node.dataset.tone = tone; }); };
   const reconnectDelay = () => Math.min(1000 * (2 ** state.reconnectAttempt++), 30000);
+  const rules = window.SistIonmChatRules;
 
   function avatar(user, fallback) {
     if (user?.avatar_path) { const img = make('img'); img.src = `/${user.avatar_path}`; img.alt = ''; return img; }
@@ -56,7 +57,16 @@
     const data = await response.json();
     if (!data.ok) return false;
     Object.assign(state, { currentUserId: data.current_user_id, generalRoomId: data.general_room_id, users: data.users || [], contextLoaded: true });
-    renderContacts(); connectNotifications(); return true;
+    (data.rooms || []).forEach((room) => {
+      const count = Number(data.unread?.[room.id] || 0);
+      if (!count) return;
+      if (Number(room.id) === Number(data.general_room_id)) state.unread.general = count;
+      else {
+        const otherUserId = Number(room.user1_id) === Number(data.current_user_id) ? room.user2_id : room.user1_id;
+        state.unread[`user:${otherUserId}`] = count;
+      }
+    });
+    renderContacts(); updateBadges(); connectNotifications(); return true;
   }
 
   function contactButton(user, rail = false) {
@@ -115,13 +125,24 @@
     if (state.notifyWs?.readyState === WebSocket.OPEN) return;
     const socket = new WebSocket(wsUrl('/ws/notify')); state.notifyWs = socket;
     socket.onopen = () => setStatus('Conectado', 'success');
-    socket.onmessage = (event) => { const payload = JSON.parse(event.data); if (payload?.type !== 'chat_message' || Number(payload.room_id) === Number(state.currentRoomId)) return; const key = Number(payload.room_id) === Number(state.generalRoomId) ? 'general' : `user:${payload.message.user_id}`; state.unread[key] = (state.unread[key] || 0) + 1; updateBadges(); };
+    socket.onmessage = (event) => {
+      const payload = JSON.parse(event.data); if (payload?.type !== 'chat_message') return;
+      const visible = rules.isConversationVisible(payload.room_id, {
+        panelOpen: document.body.classList.contains('bitrix-chat-open'),
+        currentRoomId: state.currentRoomId,
+        fullRoomId: Number(byId('fullChatRoomId')?.value || 0),
+      });
+      if (visible) return;
+      const key = rules.notificationKey(payload, state.generalRoomId);
+      state.unread[key] = (state.unread[key] || 0) + 1; updateBadges();
+    };
     socket.onerror = () => setStatus('Notificações indisponíveis', 'error');
     socket.onclose = () => setTimeout(connectNotifications, reconnectDelay());
   }
 
-  async function openGeneral() { if (!await loadContext()) return; document.body.classList.add('bitrix-chat-open'); setActiveContact('general'); setConversationHeader('Chat geral', 'Todos os usuários'); state.unread.general = 0; updateBadges(); await loadMessages(state.generalRoomId); connectRoom(state.generalRoomId); }
-  async function openUser(userId) { if (!await loadContext()) return; const response = await fetch(`/chat/private-room/${userId}`); const data = await response.json(); if (!data.ok) return; const user = state.users.find((item) => Number(item.id) === Number(userId)); document.body.classList.add('bitrix-chat-open'); setActiveContact(userId); setConversationHeader(user?.full_name || user?.username || 'Usuário', 'Conversa individual'); state.unread[`user:${userId}`] = 0; updateBadges(); await loadMessages(data.room_id); connectRoom(data.room_id); }
+  async function markRead(roomId) { await fetch(`/chat/read/${roomId}`, { method: 'POST' }); }
+  async function openGeneral() { if (!await loadContext()) return; document.body.classList.add('bitrix-chat-open'); setActiveContact('general'); setConversationHeader('Chat geral', 'Todos os usuários'); state.unread.general = 0; updateBadges(); await markRead(state.generalRoomId); await loadMessages(state.generalRoomId); connectRoom(state.generalRoomId); }
+  async function openUser(userId) { if (!await loadContext()) return; const response = await fetch(`/chat/private-room/${userId}`); const data = await response.json(); if (!data.ok) return; const user = state.users.find((item) => Number(item.id) === Number(userId)); document.body.classList.add('bitrix-chat-open'); setActiveContact(userId); setConversationHeader(user?.full_name || user?.username || 'Usuário', 'Conversa individual'); state.unread[`user:${userId}`] = 0; updateBadges(); await markRead(data.room_id); await loadMessages(data.room_id); connectRoom(data.room_id); }
   function send(content) { if (!content || state.ws?.readyState !== WebSocket.OPEN) return false; state.ws.send(JSON.stringify({ content })); return true; }
   async function sendAttachment(content, file) {
     const body = new FormData();
@@ -144,7 +165,7 @@
       if (send(value)) input.value = '';
     });
   }
-  async function connectFullChat(roomId) { await loadContext(); bindForm('fullChatForm', 'fullChatInput', 'fullChatAttachment'); await loadMessages(roomId); connectRoom(roomId); }
+  async function connectFullChat(roomId) { await loadContext(); bindForm('fullChatForm', 'fullChatInput', 'fullChatAttachment'); await markRead(roomId); await loadMessages(roomId); connectRoom(roomId); }
   async function init() { await loadContext(); bindForm('bitrixChatForm', 'bitrixChatInput', 'bitrixChatAttachment'); const room = Number(byId('fullChatRoomId')?.value || 0); if (room) connectFullChat(room); }
   function close() { state.suspended = true; state.ws?.close(); document.body.classList.remove('bitrix-chat-open'); }
   function minimize() { document.body.classList.remove('bitrix-chat-open'); }

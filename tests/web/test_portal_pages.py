@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = REPO_ROOT / "app" / "templates"
 CHAT_JS = REPO_ROOT / "app" / "static" / "chat_realtime.js"
+CHAT_RULES_JS = REPO_ROOT / "app" / "static" / "chat_notification_rules.js"
 PORTAL_CSS = REPO_ROOT / "app" / "shared" / "web" / "static" / "css" / "portal.css"
 
 
@@ -67,10 +68,12 @@ def test_chat_script_preserves_conversation_context_and_attachments() -> None:
 
 def test_chat_notifications_are_assigned_to_the_sender_contact() -> None:
     source = CHAT_JS.read_text(encoding="utf-8")
+    rules = CHAT_RULES_JS.read_text(encoding="utf-8")
 
     assert "badge.dataset.roomBadge = `user:${user.id}`" in source
-    assert "`user:${payload.message.user_id}`" in source
+    assert "`user:${payload.message.user_id}`" in rules
     assert "state.unread[`user:${userId}`] = 0" in source
+    assert "renderContacts(); updateBadges(); connectNotifications();" in source
 
 
 def test_both_chat_composers_offer_accessible_file_attachments() -> None:

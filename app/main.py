@@ -33,7 +33,7 @@ from app.features.catalog_import.service import (
 )
 
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260622.7"
+ASSET_VERSION = "20260622.8"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -429,6 +429,45 @@ def room_participants(room_id):
     return [int(room.get("user1_id") or 0), int(room.get("user2_id") or 0)]
 
 
+def mark_room_read(user_id, room_id):
+    last_message = q(
+        "SELECT COALESCE(MAX(id),0) AS id FROM chat_messages WHERE room_id=?",
+        (room_id,),
+        one=True,
+    )
+    last_message_id = int((last_message or {}).get("id") or 0)
+    exec_sql(
+        """
+        INSERT INTO chat_read_state(user_id,room_id,last_read_message_id,updated_at)
+        VALUES(?,?,?,?)
+        ON CONFLICT(user_id,room_id) DO UPDATE SET
+            last_read_message_id=excluded.last_read_message_id,
+            updated_at=excluded.updated_at
+        """,
+        (user_id, room_id, last_message_id, datetime.now().isoformat(timespec="seconds")),
+    )
+    return last_message_id
+
+
+def unread_room_counts(user_id):
+    rows = q(
+        """
+        SELECT cr.id AS room_id, COUNT(cm.id) AS unread
+        FROM chat_rooms cr
+        LEFT JOIN chat_read_state rs
+          ON rs.room_id=cr.id AND rs.user_id=?
+        LEFT JOIN chat_messages cm
+          ON cm.room_id=cr.id
+         AND cm.id>COALESCE(rs.last_read_message_id,0)
+         AND cm.user_id<>?
+        WHERE cr.room_type='general' OR cr.user1_id=? OR cr.user2_id=?
+        GROUP BY cr.id
+        """,
+        (user_id, user_id, user_id, user_id),
+    )
+    return {int(row["room_id"]): int(row["unread"] or 0) for row in rows}
+
+
 def chat_message_payload(message_id):
     row = q("""
         SELECT cm.*, u.username, up.full_name, up.avatar_path
@@ -771,6 +810,7 @@ def init_portal_modules():
     exec_sql("""CREATE TABLE IF NOT EXISTS purchases (id INTEGER PRIMARY KEY AUTOINCREMENT,supplier_id INTEGER,description TEXT,amount REAL DEFAULT 0,status TEXT DEFAULT 'Aberto',issue_date TEXT,due_date TEXT,notes TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS chat_rooms (id INTEGER PRIMARY KEY AUTOINCREMENT,name TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS chat_messages (id INTEGER PRIMARY KEY AUTOINCREMENT,room_id INTEGER,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
+    exec_sql("""CREATE TABLE IF NOT EXISTS chat_read_state (user_id INTEGER,room_id INTEGER,last_read_message_id INTEGER DEFAULT 0,updated_at TEXT,PRIMARY KEY(user_id,room_id))""")
     ensure_column("chat_rooms", "room_type", "TEXT DEFAULT 'general'")
     ensure_column("chat_rooms", "user1_id", "INTEGER")
     ensure_column("chat_rooms", "user2_id", "INTEGER")
@@ -1605,8 +1645,20 @@ def chat_context(request: Request):
         "current_username": user.get("username"),
         "general_room_id": general_id,
         "users": users,
-        "rooms": rooms
+        "rooms": rooms,
+        "unread": unread_room_counts(user["id"]),
     }
+
+
+@app.post("/chat/read/{room_id}")
+def chat_mark_read(request: Request, room_id: int):
+    if not require_login(request):
+        return JSONResponse({"ok": False, "error": "not_logged"}, status_code=401)
+    user = current_user(request)
+    if not user_can_access_room(user["id"], room_id):
+        return JSONResponse({"ok": False, "error": "forbidden"}, status_code=403)
+    mark_room_read(user["id"], room_id)
+    return {"ok": True, "room_id": room_id, "unread": 0}
 
 
 @app.get("/chat/private-room/{other_user_id}")

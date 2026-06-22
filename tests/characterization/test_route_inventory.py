@@ -15,6 +15,7 @@ EXPECTED_HTTP_ROUTES = {
     ("GET", "/chat"),
     ("GET", "/chat/context"),
     ("GET", "/chat/messages/{room_id}"),
+    ("POST", "/chat/read/{room_id}"),
     ("GET", "/chat/private-room/{other_user_id}"),
     ("GET", "/chat/private/{other_user_id}"),
     ("GET", "/commissions"),

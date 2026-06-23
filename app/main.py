@@ -361,7 +361,7 @@ def require_admin(request: Request):
 
 app.include_router(
     create_whatsapp_router(
-        database_path=DB_PATH,
+        database_path=lambda: DB_PATH,
         render=render,
         require_admin=require_admin,
         current_user=current_user,

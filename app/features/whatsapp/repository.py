@@ -52,6 +52,64 @@ class WhatsAppSettingsRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_contacts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    phone_e164 TEXT UNIQUE,
+                    display_name TEXT,
+                    profile_name TEXT,
+                    origin TEXT,
+                    client_id INTEGER,
+                    first_seen_at TEXT,
+                    last_seen_at TEXT,
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    contact_id INTEGER UNIQUE,
+                    chat_room_id INTEGER,
+                    department_id INTEGER,
+                    assigned_user_id INTEGER,
+                    status TEXT DEFAULT 'triage',
+                    last_message_at TEXT,
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_messages (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    conversation_id INTEGER,
+                    provider_message_id TEXT UNIQUE,
+                    direction TEXT,
+                    sender_label TEXT,
+                    content TEXT,
+                    message_type TEXT,
+                    media_path TEXT,
+                    raw_payload_json TEXT,
+                    status TEXT,
+                    created_at TEXT
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_triage_states (
+                    contact_id INTEGER PRIMARY KEY,
+                    state TEXT,
+                    context_json TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
             now = datetime.now().isoformat(timespec="seconds")
             for name in DEFAULT_DEPARTMENTS:
                 connection.execute(
@@ -177,3 +235,156 @@ class WhatsAppSettingsRepository:
                 "SELECT * FROM whatsapp_departments ORDER BY id",
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def find_message(self, provider_message_id: str) -> dict[str, Any] | None:
+        self.init_schema()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM whatsapp_messages WHERE provider_message_id=?",
+                (provider_message_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def upsert_contact(self, phone: str, profile_name: str) -> dict[str, Any]:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM whatsapp_contacts WHERE phone_e164=?",
+                (phone,),
+            ).fetchone()
+            if existing:
+                connection.execute(
+                    """
+                    UPDATE whatsapp_contacts
+                    SET profile_name=?, display_name=COALESCE(NULLIF(display_name,''), ?),
+                        last_seen_at=?, updated_at=?
+                    WHERE id=?
+                    """,
+                    (profile_name, profile_name, now, now, existing["id"]),
+                )
+                contact_id = existing["id"]
+            else:
+                contact_id = connection.execute(
+                    """
+                    INSERT INTO whatsapp_contacts(
+                        phone_e164, display_name, profile_name,
+                        first_seen_at, last_seen_at, created_at, updated_at
+                    )
+                    VALUES(?,?,?,?,?,?,?)
+                    """,
+                    (phone, profile_name, profile_name, now, now, now, now),
+                ).lastrowid
+            connection.commit()
+            row = connection.execute(
+                "SELECT * FROM whatsapp_contacts WHERE id=?",
+                (contact_id,),
+            ).fetchone()
+        return dict(row)
+
+    def ensure_conversation(self, contact: dict[str, Any]) -> dict[str, Any]:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        label = contact.get("display_name") or contact.get("profile_name") or contact["phone_e164"]
+        with self.connect() as connection:
+            existing = connection.execute(
+                "SELECT * FROM whatsapp_conversations WHERE contact_id=?",
+                (contact["id"],),
+            ).fetchone()
+            if existing:
+                conversation_id = existing["id"]
+                chat_room_id = existing["chat_room_id"]
+            else:
+                chat_room_id = connection.execute(
+                    "INSERT INTO chat_rooms(name,created_at,room_type) VALUES(?,?,?)",
+                    (f"WhatsApp · {label}", now, "whatsapp"),
+                ).lastrowid
+                conversation_id = connection.execute(
+                    """
+                    INSERT INTO whatsapp_conversations(contact_id,chat_room_id,status,last_message_at,created_at,updated_at)
+                    VALUES(?,?,?,?,?,?)
+                    """,
+                    (contact["id"], chat_room_id, "triage", now, now, now),
+                ).lastrowid
+            connection.execute(
+                "UPDATE whatsapp_conversations SET last_message_at=?, updated_at=? WHERE id=?",
+                (now, now, conversation_id),
+            )
+            connection.commit()
+            row = connection.execute(
+                "SELECT * FROM whatsapp_conversations WHERE id=?",
+                (conversation_id,),
+            ).fetchone()
+        return dict(row)
+
+    def insert_inbound_message(
+        self,
+        *,
+        conversation_id: int,
+        provider_message_id: str,
+        sender_label: str,
+        content: str,
+        message_type: str,
+        raw_payload_json: str,
+    ) -> bool:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            try:
+                connection.execute(
+                    """
+                    INSERT INTO whatsapp_messages(
+                        conversation_id, provider_message_id, direction, sender_label,
+                        content, message_type, raw_payload_json, status, created_at
+                    )
+                    VALUES(?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        conversation_id,
+                        provider_message_id,
+                        "inbound",
+                        sender_label,
+                        content,
+                        message_type,
+                        raw_payload_json,
+                        "received",
+                        now,
+                    ),
+                )
+            except sqlite3.IntegrityError:
+                return False
+            connection.commit()
+        return True
+
+    def mirror_to_chat(self, chat_room_id: int, sender_label: str, content: str) -> None:
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            connection.execute(
+                "INSERT INTO chat_messages(room_id,user_id,content,attachment_path,created_at) VALUES(?,?,?,?,?)",
+                (chat_room_id, None, f"WhatsApp · {sender_label}: {content}", None, now),
+            )
+            connection.commit()
+
+    def get_triage_state(self, contact_id: int) -> str | None:
+        self.init_schema()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT state FROM whatsapp_triage_states WHERE contact_id=?",
+                (contact_id,),
+            ).fetchone()
+        return row["state"] if row else None
+
+    def set_triage_state(self, contact_id: int, state: str) -> None:
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO whatsapp_triage_states(contact_id,state,context_json,updated_at)
+                VALUES(?,?,?,?)
+                ON CONFLICT(contact_id) DO UPDATE SET
+                    state=excluded.state,
+                    updated_at=excluded.updated_at
+                """,
+                (contact_id, state, "{}", now),
+            )
+            connection.commit()

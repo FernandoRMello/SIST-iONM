@@ -32,9 +32,11 @@ from app.features.catalog_import.service import (
     parse_workbook,
 )
 from app.features.profile_avatar.service import AvatarValidationError, process_avatar
+from app.features.whatsapp.repository import WhatsAppSettingsRepository
+from app.features.whatsapp.routes import create_whatsapp_router
 
 APP_NAME = "SIST-iONM"
-ASSET_VERSION = "20260622.9"
+ASSET_VERSION = "20260623.1"
 BASE_DIR = Path(__file__).resolve().parent.parent
 SHARED_STATIC_DIR = BASE_DIR / "app" / "shared" / "web" / "static"
 LEGACY_TEMPLATE_DIR = BASE_DIR / "app" / "templates"
@@ -355,6 +357,16 @@ def require_login(request: Request):
 def require_admin(request: Request):
     user = current_user(request)
     return bool(user and user.get("role") == "admin")
+
+
+app.include_router(
+    create_whatsapp_router(
+        database_path=DB_PATH,
+        render=render,
+        require_admin=require_admin,
+        current_user=current_user,
+    ),
+)
 
 
 def can_view_seller(request: Request, seller_id):
@@ -798,6 +810,7 @@ def init_db():
 
 
 def init_portal_modules():
+    WhatsAppSettingsRepository(DB_PATH).init_schema()
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_likes (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,created_at TEXT,UNIQUE(post_id,user_id))""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,reaction TEXT CHECK(reaction IN ('like','dislike')),created_at TEXT,UNIQUE(post_id,user_id))""")

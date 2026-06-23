@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header, status_badge, icon %}
+
+{% block title %}WhatsApp Business{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack ui-whatsapp-wizard">
+  {{ page_header('WhatsApp Business', 'Configure a API oficial da Meta, webhook, setores e ativação em um fluxo guiado.', 'Integrações') }}
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <p class="ui-eyebrow">Status da integração</p>
+        <h2>Instalação assistida</h2>
+        <p>Somente administradores podem alterar estas propriedades. Segredos salvos são mascarados e não voltam para o HTML.</p>
+      </div>
+      {{ status_badge(settings.setup_status or 'Não configurado', 'neutral') }}
+    </header>
+    <ol class="ui-whatsapp-steps">
+      <li><strong>1. Introdução</strong><span>Use a API oficial da Meta com HTTPS público.</span></li>
+      <li><strong>2. Credenciais</strong><span>Informe Phone Number ID, WABA ID, token e app secret.</span></li>
+      <li><strong>3. Webhook</strong><span>Cadastre a URL e o verify token no painel da Meta.</span></li>
+      <li><strong>4. Setores</strong><span>Comercial, Financeiro, Pedidos e Suporte ficam prontos para roteamento.</span></li>
+      <li><strong>5. Ativação</strong><span>Teste e ative quando a Meta validar o callback.</span></li>
+    </ol>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div><p class="ui-eyebrow">Webhook</p><h2>URL para cadastrar na Meta</h2></div>
+    </header>
+    <label class="ui-field" for="whatsapp-webhook-copy">
+      <span class="ui-field__label">Callback URL</span>
+      <input class="ui-field__control" id="whatsapp-webhook-copy" value="{{ webhook_url }}" readonly>
+    </label>
+    {% if generated_verify_token %}
+      <div class="ui-alert ui-alert--warning">
+        <strong>Verify token gerado agora:</strong>
+        <code>{{ generated_verify_token }}</code>
+        <p>Copie este valor para a Meta. Ele só aparece nesta visita.</p>
+      </div>
+    {% endif %}
+    <form method="post" action="/admin/integrations/whatsapp/generate-token">
+      <button class="ui-button ui-button--secondary" type="submit">{{ icon('settings', 16) }} Gerar novo verify token</button>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div><p class="ui-eyebrow">Credenciais da Meta</p><h2>Configuração segura</h2></div>
+    </header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/admin/integrations/whatsapp/save">
+      <label class="ui-field" for="wa-api-version"><span class="ui-field__label">Versão da API</span><input class="ui-field__control" id="wa-api-version" name="api_version" value="{{ settings.api_version or 'v23.0' }}" autocomplete="off"></label>
+      <label class="ui-field" for="wa-phone-id"><span class="ui-field__label">Phone Number ID</span><input class="ui-field__control" id="wa-phone-id" name="phone_number_id" value="{{ settings.phone_number_id or '' }}" autocomplete="off"></label>
+      <label class="ui-field" for="wa-waba-id"><span class="ui-field__label">WhatsApp Business Account ID</span><input class="ui-field__control" id="wa-waba-id" name="whatsapp_business_account_id" value="{{ settings.whatsapp_business_account_id or '' }}" autocomplete="off"></label>
+      <label class="ui-field" for="wa-public-url"><span class="ui-field__label">URL pública do webhook</span><input class="ui-field__control" id="wa-public-url" name="public_webhook_url" value="{{ settings.public_webhook_url or webhook_url }}" autocomplete="off"></label>
+      <label class="ui-field" for="wa-access-token"><span class="ui-field__label">Access token <small>{{ masked.access_token }}</small></span><input class="ui-field__control" id="wa-access-token" name="access_token" type="password" value="" autocomplete="new-password" placeholder="Preencha somente para alterar"></label>
+      <label class="ui-field" for="wa-app-secret"><span class="ui-field__label">App secret <small>{{ masked.app_secret }}</small></span><input class="ui-field__control" id="wa-app-secret" name="app_secret" type="password" value="" autocomplete="new-password" placeholder="Preencha somente para alterar"></label>
+      <label class="ui-field" for="wa-verify-token"><span class="ui-field__label">Verify token <small>{{ masked.verify_token }}</small></span><input class="ui-field__control" id="wa-verify-token" name="verify_token" type="password" value="" autocomplete="new-password" placeholder="Preencha somente para alterar"></label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">{{ icon('save', 16) }} Salvar configuração</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div><p class="ui-eyebrow">Roteamento</p><h2>Setores iniciais</h2></div>
+    </header>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Setor</th><th>Descrição</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for department in departments %}
+          <tr><td>{{ department.name }}</td><td>{{ department.description or '-' }}</td><td>{{ status_badge(department.is_active or 'Sim', 'neutral') }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div><p class="ui-eyebrow">Ativação</p><h2>Habilitar integração</h2><p>Ative somente depois que o webhook for validado no painel da Meta.</p></div>
+      {{ status_badge('Ativo' if settings.enabled == 'Sim' else 'Inativo', 'neutral') }}
+    </header>
+    <form method="post" action="/admin/integrations/whatsapp/toggle">
+      <input type="hidden" name="enabled" value="{{ 'Não' if settings.enabled == 'Sim' else 'Sim' }}">
+      <button class="ui-button ui-button--secondary" type="submit">{% if settings.enabled == 'Sim' %}Desativar integração{% else %}Ativar integração{% endif %}</button>
+    </form>
+  </section>
+</div>
+{% endblock %}

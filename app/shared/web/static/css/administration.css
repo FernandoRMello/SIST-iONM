@@ -116,6 +116,33 @@
   text-align: center;
 }
 
+.ui-whatsapp-wizard code {
+  display: inline-block;
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-muted);
+  color: var(--color-text-strong);
+  word-break: break-all;
+}
+
+.ui-whatsapp-steps {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-whatsapp-steps li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
 @media (max-width: 900px) {
   .ui-admin-form,
   .ui-admin-form--wide {

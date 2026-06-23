@@ -70,14 +70,35 @@
       <div><p class="ui-eyebrow">Roteamento</p><h2>Setores iniciais</h2></div>
     </header>
     <div class="ui-table-wrapper">
+      <form method="post" action="/admin/integrations/whatsapp/departments">
       <table class="ui-table">
-        <thead><tr><th>Setor</th><th>Descrição</th><th>Status</th></tr></thead>
+        <thead><tr><th>Setor</th><th>Descrição</th><th>Responsável padrão</th><th>Ativo</th></tr></thead>
         <tbody>
         {% for department in departments %}
-          <tr><td>{{ department.name }}</td><td>{{ department.description or '-' }}</td><td>{{ status_badge(department.is_active or 'Sim', 'neutral') }}</td></tr>
+          <tr>
+            <td>{{ department.name }}</td>
+            <td>{{ department.description or '-' }}</td>
+            <td>
+              <label class="ui-visually-hidden" for="department-{{ department.id }}-user">Responsável {{ department.name }}</label>
+              <select class="ui-field__control" id="department-{{ department.id }}-user" name="department_{{ department.id }}_default_user_id">
+                <option value="">Administradores</option>
+                {% for account in whatsapp_users %}
+                  <option value="{{ account.id }}" {% if department.default_user_id == account.id %}selected{% endif %}>{{ account.username }} · {{ account.role }}</option>
+                {% endfor %}
+              </select>
+            </td>
+            <td>
+              <label>
+                <input type="checkbox" name="department_{{ department.id }}_active" value="Sim" {% if department.is_active != 'Não' %}checked{% endif %}>
+                Sim
+              </label>
+            </td>
+          </tr>
         {% endfor %}
         </tbody>
       </table>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--secondary" type="submit">Salvar setores</button></div>
+      </form>
     </div>
   </section>
 

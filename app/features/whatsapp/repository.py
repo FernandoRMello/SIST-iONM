@@ -277,6 +277,33 @@ class WhatsAppSettingsRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def active_users(self) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT id, username, role FROM users WHERE active='Sim' ORDER BY username",
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def save_departments(self, form_data: dict[str, str], updated_by_user_id: int) -> None:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        departments = self.departments()
+        with self.connect() as connection:
+            for department in departments:
+                department_id = int(department["id"])
+                active = "Sim" if form_data.get(f"department_{department_id}_active") else "Não"
+                raw_user_id = form_data.get(f"department_{department_id}_default_user_id") or ""
+                default_user_id = int(raw_user_id) if raw_user_id.isdigit() else None
+                connection.execute(
+                    """
+                    UPDATE whatsapp_departments
+                    SET is_active=?, default_user_id=?, updated_at=?
+                    WHERE id=?
+                    """,
+                    (active, default_user_id, now, department_id),
+                )
+            connection.commit()
+
     def find_message(self, provider_message_id: str) -> dict[str, Any] | None:
         self.init_schema()
         with self.connect() as connection:

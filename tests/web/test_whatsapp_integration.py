@@ -80,6 +80,38 @@ def test_non_admin_cannot_change_whatsapp_settings(
     assert response.status_code == 403
 
 
+def test_admin_can_configure_whatsapp_departments(
+    admin_client: TestClient,
+    authenticated_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    forbidden = authenticated_client.post(
+        "/admin/integrations/whatsapp/departments",
+        data={"department_1_active": "Sim"},
+        follow_redirects=False,
+    )
+    assert forbidden.status_code == 403
+
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/departments",
+        data={
+            "department_1_active": "Sim",
+            "department_1_default_user_id": str(legacy_test_state.ids["settings_user_id"]),
+            "department_2_default_user_id": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        connection.row_factory = sqlite3.Row
+        department = connection.execute(
+            "SELECT default_user_id,is_active FROM whatsapp_departments WHERE id=1",
+        ).fetchone()
+    assert department["default_user_id"] == legacy_test_state.ids["settings_user_id"]
+    assert department["is_active"] == "Sim"
+
+
 def _save_valid_whatsapp_settings(admin_client: TestClient) -> None:
     response = admin_client.post(
         "/admin/integrations/whatsapp/save",

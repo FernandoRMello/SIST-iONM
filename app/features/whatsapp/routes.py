@@ -102,6 +102,7 @@ def create_whatsapp_router(
                 "settings": settings,
                 "masked": masked,
                 "departments": repo.departments(),
+                "whatsapp_users": repo.active_users(),
                 "generated_verify_token": request.session.pop(
                     "whatsapp_generated_verify_token",
                     "",
@@ -144,6 +145,19 @@ def create_whatsapp_router(
         if denied:
             return denied
         request.session["whatsapp_generated_verify_token"] = secrets.token_urlsafe(32)
+        return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
+
+    @router.post("/admin/integrations/whatsapp/departments")
+    async def whatsapp_departments_save(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        user = current_user(request) or {}
+        form = await request.form()
+        repository().save_departments(
+            {key: str(value) for key, value in form.items()},
+            int(user.get("id") or 0),
+        )
         return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
 
     @router.post("/admin/integrations/whatsapp/toggle")

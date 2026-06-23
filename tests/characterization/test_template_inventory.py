@@ -19,6 +19,7 @@ EXPECTED_TEMPLATES = {
     "purchases.html",
     "seller_reports.html",
     "settings.html",
+    "whatsapp_settings.html",
 }
 
 

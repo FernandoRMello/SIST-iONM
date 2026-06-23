@@ -5,7 +5,7 @@
 ```text
 app/main.py                         aplicação legada, rotas e regras ainda monolíticas
 app/features/catalog_import/       importação Excel de clientes e fornecedores
-app/templates/                      18 templates compatíveis
+app/templates/                      18 templates originais + wizard WhatsApp
 app/shared/web/templates/layouts/   shell principal
 app/shared/web/templates/components macros Jinja
 app/shared/web/templates/errors/    páginas 400/403/404/500

@@ -2,7 +2,7 @@
 
 ## Estado desta entrega
 
-O frontend das 18 telas está modularizado e testado. A aplicação executável ainda usa o monólito `app/main.py` e SQLite em `data/overpriceon_web.db`. PostgreSQL e extração backend por domínio são a próxima etapa; não apontar este build para produção compartilhada como se o cutover já estivesse concluído.
+O frontend das 18 telas originais e o wizard administrativo do WhatsApp estão modularizados e testados. A aplicação executável ainda usa o monólito `app/main.py` e SQLite em `data/overpriceon_web.db`. PostgreSQL e extração backend por domínio são a próxima etapa; não apontar este build para produção compartilhada como se o cutover já estivesse concluído.
 
 ## Requisitos
 

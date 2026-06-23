@@ -2,7 +2,7 @@
 
 Data da auditoria: 22/06/2026.
 
-Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de renderização, paginação, consultas críticas e banco SQLite-fonte. As correções abaixo possuem regressão automatizada; itens apenas suspeitos não são declarados como corrigidos.
+Escopo: 19 templates Jinja, shell compartilhado, JavaScript local, rotas de renderização, paginação, consultas críticas, integração WhatsApp e banco SQLite-fonte. As correções abaixo possuem regressão automatizada; itens apenas suspeitos não são declarados como corrigidos.
 
 ## Bugs corrigidos
 
@@ -33,7 +33,7 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 
 ## Verificações transversais
 
-- 18 templates sem handlers JavaScript inline, assets remotos, emojis de navegação ou senha preenchida.
+- 19 templates sem handlers JavaScript inline, assets remotos, emojis de navegação ou senha preenchida.
 - JavaScript sem `eval`, `document.write`, `insertAdjacentHTML` ou `.innerHTML`.
 - Labels, estados não dependentes apenas de cor, foco visível, `aria-live` no chat e navegação responsiva.
 - Banco-fonte não é usado pelos testes; a referência corrente deve ser conferida em `docs/development.md`.

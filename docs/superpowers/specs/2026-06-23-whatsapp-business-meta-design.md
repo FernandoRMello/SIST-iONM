@@ -25,6 +25,8 @@ Integrar o número atual do WhatsApp Business da empresa ao SIST-iONM usando a A
   - pedidos;
   - compras/status de compra quando houver vínculo seguro;
   - encaminhamento humano quando a consulta não for reconhecida.
+- Criar um wizard administrativo dentro da plataforma para instalação, configuração, teste e manutenção da integração WhatsApp Business.
+- Restringir criação, edição, ativação, desativação e teste da configuração WhatsApp somente a usuários administradores.
 
 ## Fora do escopo inicial
 
@@ -89,7 +91,120 @@ app/features/whatsapp/
   service.py         triagem, estado da conversa e consulta ao banco
   routes.py          webhook GET/POST e endpoints internos de atendimento
   schemas.py         normalização de payloads recebidos
+  wizard.py          passos, validações e teste guiado da configuração
 ```
+
+## Wizard administrativo de configuração
+
+A plataforma deve ter uma tela administrativa exclusiva para usuários com perfil `admin`, acessível pelo menu de administração como:
+
+```text
+Administração → Integrações → WhatsApp Business
+```
+
+Usuários não administradores não podem visualizar a tela, acessar rotas internas, salvar credenciais, executar teste de conexão, ativar/desativar integração ou consultar segredos mascarados. Todas as validações de permissão devem ocorrer no servidor, não apenas na interface.
+
+### Objetivo do wizard
+
+Guiar um administrador na configuração da integração oficial sem editar arquivos manualmente. O wizard deve explicar cada dado solicitado, validar o que for possível, testar comunicação com a Meta e mostrar o status final da integração.
+
+### Etapas do wizard
+
+1. **Introdução**
+   - Explicar que a integração usa a API oficial da Meta.
+   - Listar pré-requisitos: Meta App, WABA, número conectado, token e HTTPS público.
+   - Exibir a URL pública do webhook que deve ser cadastrada na Meta.
+
+2. **Credenciais da Meta**
+   - Campos:
+     - `phone_number_id`;
+     - `whatsapp_business_account_id`;
+     - `access_token`;
+     - `app_secret`;
+     - `api_version`.
+   - `access_token` e `app_secret` devem ser campos secretos. Depois de salvos, nunca devem ser renderizados em texto claro.
+
+3. **Webhook**
+   - Gerar ou permitir informar `verify_token`.
+   - Mostrar callback URL:
+
+```text
+https://DOMINIO_PUBLICO/integrations/whatsapp/webhook
+```
+
+   - Permitir copiar a URL.
+   - Mostrar checklist de assinatura do webhook na Meta.
+
+4. **Setores e roteamento**
+   - Criar/editar setores iniciais:
+     - Comercial;
+     - Financeiro;
+     - Pedidos;
+     - Suporte.
+   - Definir responsável padrão por setor.
+   - Ativar ou desativar setores.
+
+5. **Mensagens automáticas**
+   - Configurar textos padrão de primeiro contato:
+     - pergunta de nome;
+     - pergunta de origem;
+     - menu de setores;
+     - mensagem de encaminhamento humano;
+     - mensagem quando não houver vínculo seguro com cliente.
+   - A primeira versão deve salvar textos simples, sem variáveis livres além das variáveis suportadas pelo sistema.
+
+6. **Teste de conexão**
+   - Validar se as credenciais obrigatórias existem.
+   - Fazer chamada segura à Meta para verificar o `phone_number_id`.
+   - Permitir envio de uma mensagem de teste para um número informado pelo administrador, respeitando as regras da janela/template da Meta.
+   - Mostrar sucesso ou erro com mensagem operacional, sem expor token ou segredo.
+
+7. **Ativação**
+   - Mostrar resumo da configuração.
+   - Permitir ativar/desativar `WHATSAPP_ENABLED` pelo painel.
+   - Registrar quem ativou, quando ativou e último resultado de teste.
+
+### Estado visual esperado
+
+O wizard deve mostrar um status simples:
+
+```text
+Não configurado → Credenciais salvas → Webhook pendente → Testado → Ativo
+```
+
+Cada etapa deve indicar o que falta para avançar. A tela deve ser compatível com a navegação persistente atual do shell e usar componentes `ui-*` do design system.
+
+### Armazenamento da configuração
+
+Configurações não sensíveis podem ficar no banco. Segredos devem ser protegidos. Para a primeira versão local/Ubuntu, aceitar uma destas estratégias:
+
+1. **Preferencial:** salvar segredos no `.env` ou secret manager do servidor e o wizard apenas validar/mostrar status.
+2. **Operacional inicial:** salvar segredos criptografados no banco usando uma chave mestre fora do banco, fornecida por variável de ambiente.
+
+Não é permitido salvar `access_token` ou `app_secret` em texto claro no banco.
+
+Tabela sugerida:
+
+```text
+whatsapp_settings
+  id
+  enabled
+  api_version
+  phone_number_id
+  whatsapp_business_account_id
+  verify_token_hash
+  access_token_encrypted
+  app_secret_encrypted
+  public_webhook_url
+  setup_status
+  last_test_status
+  last_test_message
+  last_test_at
+  updated_by_user_id
+  updated_at
+```
+
+O `verify_token` também não deve ser exibido em texto claro depois de salvo. Se for necessário reconfigurar, o administrador deve gerar um novo token.
 
 ## Fluxo de entrada
 
@@ -217,6 +332,23 @@ whatsapp_assignments
   user_id
   assigned_at
   closed_at
+
+whatsapp_settings
+  id
+  enabled
+  api_version
+  phone_number_id
+  whatsapp_business_account_id
+  verify_token_hash
+  access_token_encrypted
+  app_secret_encrypted
+  public_webhook_url
+  setup_status
+  last_test_status
+  last_test_message
+  last_test_at
+  updated_by_user_id
+  updated_at
 ```
 
 ## Integração com chat interno
@@ -245,6 +377,9 @@ Depois de validado, pode virar comportamento padrão por sala.
 - Rejeitar payloads acima de limite definido.
 - Persistir payload bruto somente quando necessário para auditoria e sem expor em tela comum.
 - Não logar token, app secret, número completo com dados financeiros ou payload sensível.
+- O wizard deve mascarar segredos salvos e nunca renderizar `access_token`, `app_secret` ou `verify_token` em texto claro após o salvamento.
+- Toda rota do wizard deve validar `role == "admin"` no servidor.
+- Alterações de configuração devem registrar auditoria mínima: usuário, data/hora, campo operacional alterado e status final, sem registrar valores secretos.
 - Nunca responder dados financeiros se o contato não estiver vinculado com segurança a um cliente.
 - Usar queries parametrizadas.
 - Aplicar rate limit por telefone e por IP no webhook quando houver camada Redis/Nginx disponível.
@@ -281,23 +416,31 @@ Na primeira versão local, o processamento pode ser síncrono com limites curtos
 - Consulta financeira com `client_id` retorna apenas dados daquele cliente.
 - Resposta interna gera chamada para cliente Meta fake nos testes.
 - Configuração `WHATSAPP_ENABLED=false` bloqueia envio real.
+- Wizard administrativo retorna `403` para usuário não admin.
+- Wizard salva configuração sem renderizar segredos em HTML.
+- Wizard permite gerar novo `verify_token` sem expor tokens antigos.
+- Teste de conexão usa cliente Meta fake nos testes e registra status operacional.
 
 ## Plano de entrega recomendado
 
 1. Fundação segura do webhook e configuração por `.env`.
-2. Persistência de contatos/conversas/mensagens.
-3. Triagem de primeiro contato.
-4. Espelhamento no chat interno.
-5. Envio manual de resposta para WhatsApp.
-6. Consultas automáticas conservadoras.
-7. Tela administrativa de setores e atribuições.
-8. Documentação de instalação Ubuntu/Nginx/HTTPS/Meta App.
+2. Wizard administrativo de configuração e teste da integração.
+3. Persistência de contatos/conversas/mensagens.
+4. Triagem de primeiro contato.
+5. Espelhamento no chat interno.
+6. Envio manual de resposta para WhatsApp.
+7. Consultas automáticas conservadoras.
+8. Tela administrativa de setores e atribuições integrada ao wizard.
+9. Documentação de instalação Ubuntu/Nginx/HTTPS/Meta App.
 
 ## Critério de aceite
 
 A entrega é considerada pronta quando:
 
 - O webhook oficial da Meta valida a URL pública.
+- Um administrador consegue configurar credenciais, webhook, setores e mensagens padrão pelo wizard da plataforma.
+- Usuários não administradores recebem `403` ao tentar acessar ou alterar configuração WhatsApp.
+- Segredos da Meta não aparecem em HTML, logs ou documentação gerada.
 - Uma mensagem enviada ao número atual aparece dentro do SIST-iONM.
 - Um primeiro contato recebe perguntas de nome e origem.
 - A conversa pode ser encaminhada para setor.

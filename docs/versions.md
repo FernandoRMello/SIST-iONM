@@ -1,6 +1,6 @@
 # Versões verificadas
 
-Verificação local em 18/06/2026.
+Verificação local em 23/06/2026.
 
 | Componente | Versão |
 |---|---:|
@@ -27,6 +27,12 @@ As dependências de aplicação e desenvolvimento estão fixadas em `pyproject.t
 ## Sistema operacional alvo
 
 O handoff e os comandos de execução foram preparados para Linux/Ubuntu. A validação desta sessão ocorreu em Windows; por isso o deploy Ubuntu deve repetir integralmente os comandos de `docs/development.md` e o gate automatizado antes da liberação.
+
+## Integrações
+
+- WhatsApp Business Cloud API: preparada para API oficial da Meta via versão padrão `v23.0`, configurável no wizard administrativo.
+- Webhook local: `/integrations/whatsapp/webhook`.
+- Wizard: `/admin/integrations/whatsapp`, exclusivo para `admin`.
 
 ## Como reverificar
 

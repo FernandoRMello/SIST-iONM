@@ -74,6 +74,28 @@ PNG, JPG/JPEG, GIF e WebP são imagens inline. Todos os anexos mantêm o limite 
 
 O WebSocket em memória exige um único worker. Para múltiplos workers, planeje pub/sub compartilhado antes do deploy.
 
+## WhatsApp Business Cloud API
+
+A integração fica em **Administração → WhatsApp Business** e exige usuário `admin`.
+
+Passos mínimos:
+
+1. Configure uma URL pública HTTPS para o servidor Ubuntu/local.
+2. No painel da Meta, habilite WhatsApp Business Platform para o número atual.
+3. No wizard, informe `phone_number_id`, `whatsapp_business_account_id`, `access_token`, `app_secret` e a URL pública do webhook.
+4. Gere ou informe o `verify_token` e cadastre-o na Meta junto com a callback URL `/integrations/whatsapp/webhook`.
+5. Use “Testar conexão” somente com um número permitido pela janela/template da Meta.
+6. Ative a integração após a Meta validar o webhook.
+
+Defina `WHATSAPP_SECRET_KEY` no `.env` com pelo menos 32 caracteres aleatórios. Essa chave protege os segredos salvos no banco; se ela for perdida, será necessário reenviar token e app secret pelo wizard. Não copie tokens reais para commits, prints ou logs.
+
+O webhook público aceita:
+
+- `GET /integrations/whatsapp/webhook` para verificação da Meta;
+- `POST /integrations/whatsapp/webhook` para eventos assinados com `X-Hub-Signature-256`.
+
+Primeiro contato recebe triagem conservadora e a conversa aparece no chat interno como `WhatsApp · nome/telefone`. Dados financeiros ou pedidos não devem ser enviados automaticamente sem vínculo seguro entre telefone e cliente.
+
 ## Banco de desenvolvimento
 
 - Nunca teste escrita diretamente em `data/overpriceon_web.db`.

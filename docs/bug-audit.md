@@ -29,6 +29,7 @@ Escopo: 18 templates Jinja, shell compartilhado, JavaScript local, rotas de rend
 | BUG-019 | Alta (comunicação) | Notificações do chat | A última sala selecionada era tratada como visível mesmo com painel fechado/minimizado, descartando o badge. | Visibilidade real, leitura persistente e restauração de contadores pelo contexto. | `tests/web/test_chat_notifications.py` + `tests/js/chat-notifications.test.js` |
 | BUG-020 | Média (integridade) | Feed | Like legado era GET e não havia reação negativa nem exclusividade formal. | POST com tabela única, restrição por usuário/post e alternância like/dislike/remover. | `tests/web/test_feed_reactions.py` |
 | BUG-021 | Alta (segurança) | Avatar | Upload de perfil confiava na extensão, não limitava tamanho e preservava metadados/conteúdo original. | Pillow valida conteúdo, limita pixels/tamanho, corrige EXIF e regrava JPEG 512 × 512 com nome aleatório. | `tests/features/test_profile_avatar_service.py` + `tests/web/test_profile_avatar.py` |
+| BUG-022 | Alta (segurança) | WhatsApp Business | Integrações externas poderiam expor tokens, aceitar webhooks falsos ou duplicar mensagens se fossem acopladas direto ao chat. | Wizard admin-only, segredos mascarados/criptografados, verify token hasheado, validação `X-Hub-Signature-256` e deduplicação por `provider_message_id`. | `tests/features/test_whatsapp_security.py` + `tests/features/test_whatsapp_service.py` + `tests/web/test_whatsapp_integration.py` |
 
 ## Verificações transversais
 

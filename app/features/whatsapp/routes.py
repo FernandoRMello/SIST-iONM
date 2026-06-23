@@ -1,8 +1,8 @@
-import os
 import json
+import os
 import secrets
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
@@ -17,7 +17,10 @@ from app.features.whatsapp.security import (
     valid_meta_signature,
     verify_token_matches,
 )
-from app.features.whatsapp.service import handle_inbound_message, normalize_inbound_payload
+from app.features.whatsapp.service import (
+    handle_inbound_message,
+    normalize_inbound_payload,
+)
 
 
 def _master_key() -> str:

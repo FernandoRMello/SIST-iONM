@@ -14,6 +14,7 @@ app/shared/web/static/js/            comportamento progressivo
 app/shared/web/static/js/shell-navigation.js navegação central com shell persistente
 app/static/chat_notification_rules.js regras testáveis de visibilidade e badge
 app/features/profile_avatar/        validação e normalização de fotos de perfil
+app/features/whatsapp/              integração WhatsApp Business Cloud API, wizard admin, webhook e triagem
 app/shared/web/static/icons/         sprite SVG local
 app/static/chat_realtime.js          cliente WebSocket
 tests/characterization/              inventário e preservação de rotas/render
@@ -69,6 +70,19 @@ No chat, `attachment_is_image` é calculado no backend. PNG, JPG/JPEG, WebP e GI
 - `feed_reactions` guarda uma única reação `like` ou `dislike` por usuário/publicação. Repetir remove; selecionar a oposta substitui.
 - Posts e comentários recebem `avatar_path` na consulta e usam a inicial como fallback.
 - `profile-avatar-editor.js` controla moldura, arraste e zoom; `app/features/profile_avatar/service.py` nunca confia no arquivo do navegador e gera JPEG RGB 512 × 512.
+
+## Integração WhatsApp Business
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app/features/whatsapp/security.py` | máscara de segredos, hash do verify token, criptografia local e validação `X-Hub-Signature-256` |
+| `app/features/whatsapp/repository.py` | tabelas de configuração, contatos, conversas, mensagens, setores e triagem |
+| `app/features/whatsapp/service.py` | normalização de payloads Meta, idempotência, triagem inicial e espelhamento no chat |
+| `app/features/whatsapp/client.py` | envio de texto pela Cloud API oficial da Meta |
+| `app/features/whatsapp/routes.py` | wizard admin, teste de conexão e webhook público |
+| `app/templates/whatsapp_settings.html` | wizard `Administração → WhatsApp Business` |
+
+Somente `admin` pode acessar e alterar a integração. `access_token`, `app_secret` e `verify_token` não são renderizados em texto claro após o salvamento. O POST do webhook valida assinatura HMAC antes de processar mensagens. Mensagens recebidas são deduplicadas por `provider_message_id` e espelhadas em uma sala interna `WhatsApp · contato`.
 
 ## Importação de clientes e fornecedores
 

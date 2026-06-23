@@ -1,6 +1,6 @@
-import sqlite3
 import hashlib
 import hmac
+import sqlite3
 
 from fastapi.testclient import TestClient
 

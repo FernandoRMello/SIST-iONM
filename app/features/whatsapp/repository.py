@@ -228,6 +228,47 @@ class WhatsAppSettingsRepository:
             )
             connection.commit()
 
+    def record_test_status(
+        self,
+        *,
+        status: str,
+        message: str,
+        updated_by_user_id: int,
+    ) -> None:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        safe_message = message[:500]
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO whatsapp_settings(
+                    id, enabled, api_version, setup_status,
+                    last_test_status, last_test_message, last_test_at,
+                    updated_by_user_id, updated_at
+                )
+                VALUES(1,?,?,?,?,?,?,?,?)
+                ON CONFLICT(id) DO UPDATE SET
+                    setup_status=CASE WHEN ?='success' THEN 'Testado' ELSE whatsapp_settings.setup_status END,
+                    last_test_status=excluded.last_test_status,
+                    last_test_message=excluded.last_test_message,
+                    last_test_at=excluded.last_test_at,
+                    updated_by_user_id=excluded.updated_by_user_id,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    "Não",
+                    "v23.0",
+                    "Não configurado",
+                    status,
+                    safe_message,
+                    now,
+                    updated_by_user_id,
+                    now,
+                    status,
+                ),
+            )
+            connection.commit()
+
     def departments(self) -> list[dict[str, Any]]:
         self.init_schema()
         with self.connect() as connection:

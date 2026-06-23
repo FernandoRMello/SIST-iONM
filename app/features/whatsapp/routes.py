@@ -7,6 +7,7 @@ from typing import Callable
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
+from app.features.whatsapp.client import MetaWhatsAppClient
 from app.features.whatsapp.repository import WhatsAppSettingsRepository
 from app.features.whatsapp.security import (
     decrypt_secret,
@@ -156,6 +157,41 @@ def create_whatsapp_router(
             str(form.get("enabled") or "") == "Sim",
             int(user.get("id") or 0),
         )
+        return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
+
+    @router.post("/admin/integrations/whatsapp/test")
+    async def whatsapp_test_connection(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        user = current_user(request) or {}
+        form = await request.form()
+        repo = repository()
+        settings = repo.get_settings()
+        access_token = decrypt_secret(
+            settings.get("access_token_encrypted") or "",
+            _master_key(),
+        )
+        try:
+            MetaWhatsAppClient().send_text(
+                api_version=settings.get("api_version") or "v23.0",
+                phone_number_id=settings.get("phone_number_id") or "",
+                access_token=access_token,
+                to_phone=str(form.get("to_phone") or ""),
+                message=str(form.get("message") or "Teste SIST-iONM"),
+            )
+        except Exception as exc:
+            repo.record_test_status(
+                status="error",
+                message=f"Falha no teste: {exc}",
+                updated_by_user_id=int(user.get("id") or 0),
+            )
+        else:
+            repo.record_test_status(
+                status="success",
+                message="Teste enviado",
+                updated_by_user_id=int(user.get("id") or 0),
+            )
         return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
 
     return router

@@ -86,6 +86,14 @@
       <div><p class="ui-eyebrow">Ativação</p><h2>Habilitar integração</h2><p>Ative somente depois que o webhook for validado no painel da Meta.</p></div>
       {{ status_badge('Ativo' if settings.enabled == 'Sim' else 'Inativo', 'neutral') }}
     </header>
+    {% if settings.last_test_message %}
+      <p class="ui-alert {% if settings.last_test_status == 'success' %}ui-alert--success{% else %}ui-alert--warning{% endif %}">{{ settings.last_test_message }}</p>
+    {% endif %}
+    <form class="ui-admin-form" method="post" action="/admin/integrations/whatsapp/test">
+      <label class="ui-field" for="wa-test-phone"><span class="ui-field__label">Número para teste</span><input class="ui-field__control" id="wa-test-phone" name="to_phone" placeholder="5511999999999" autocomplete="off"></label>
+      <label class="ui-field" for="wa-test-message"><span class="ui-field__label">Mensagem de teste</span><input class="ui-field__control" id="wa-test-message" name="message" value="Teste SIST-iONM" autocomplete="off"></label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--secondary" type="submit">Testar conexão</button></div>
+    </form>
     <form method="post" action="/admin/integrations/whatsapp/toggle">
       <input type="hidden" name="enabled" value="{{ 'Não' if settings.enabled == 'Sim' else 'Sim' }}">
       <button class="ui-button ui-button--secondary" type="submit">{% if settings.enabled == 'Sim' %}Desativar integração{% else %}Ativar integração{% endif %}</button>

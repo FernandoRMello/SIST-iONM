@@ -173,3 +173,55 @@ def test_whatsapp_webhook_persists_signed_message_and_deduplicates(
         ).fetchone()[0]
     assert message_count == 1
     assert chat_count == 1
+
+
+def test_whatsapp_wizard_test_connection_uses_meta_client_without_leaking_secret(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+    monkeypatch,
+) -> None:
+    _save_valid_whatsapp_settings(admin_client)
+    calls = []
+
+    class FakeMetaClient:
+        def send_text(self, *, api_version, phone_number_id, access_token, to_phone, message):
+            calls.append(
+                {
+                    "api_version": api_version,
+                    "phone_number_id": phone_number_id,
+                    "access_token": access_token,
+                    "to_phone": to_phone,
+                    "message": message,
+                },
+            )
+            return {"messages": [{"id": "wamid.TEST-SEND"}]}
+
+    monkeypatch.setattr(
+        "app.features.whatsapp.routes.MetaWhatsAppClient",
+        FakeMetaClient,
+    )
+
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/test",
+        data={"to_phone": "5511777777777", "message": "Teste SIST-iONM"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert calls == [
+        {
+            "api_version": "v23.0",
+            "phone_number_id": "123456789",
+            "access_token": "EAAB-TEST",
+            "to_phone": "5511777777777",
+            "message": "Teste SIST-iONM",
+        },
+    ]
+    page = admin_client.get("/admin/integrations/whatsapp")
+    assert "Teste enviado" in page.text
+    assert "EAAB-TEST" not in page.text
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        status = connection.execute(
+            "SELECT last_test_status FROM whatsapp_settings WHERE id=1",
+        ).fetchone()[0]
+    assert status == "success"

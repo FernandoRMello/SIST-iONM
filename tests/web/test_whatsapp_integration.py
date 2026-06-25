@@ -261,7 +261,15 @@ def test_whatsapp_wizard_test_connection_uses_meta_client_without_leaking_secret
 
 def test_admin_can_start_embedded_signup_without_exposing_state(
     admin_client: TestClient,
+    monkeypatch,
 ) -> None:
+    monkeypatch.setenv("META_EMBEDDED_SIGNUP_APP_ID", "123456")
+    monkeypatch.setenv("META_EMBEDDED_SIGNUP_CONFIG_ID", "987654")
+    monkeypatch.setenv(
+        "META_EMBEDDED_SIGNUP_REDIRECT_URI",
+        "https://sist-ionm.example.com/admin/integrations/whatsapp/embedded/callback",
+    )
+
     response = admin_client.post(
         "/admin/integrations/whatsapp/embedded/start",
         follow_redirects=False,
@@ -269,9 +277,31 @@ def test_admin_can_start_embedded_signup_without_exposing_state(
 
     assert response.status_code == 303
     assert "state=" in response.headers["location"]
-    assert "client_id=" in response.headers["location"]
+    assert "client_id=123456" in response.headers["location"]
+    assert "config_id=987654" in response.headers["location"]
+    assert "not-configured" not in response.headers["location"]
     page = admin_client.get("/admin/integrations/whatsapp")
     assert "state-token" not in page.text
+
+
+def test_embedded_signup_start_requires_meta_environment(
+    admin_client: TestClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("META_EMBEDDED_SIGNUP_APP_ID", raising=False)
+    monkeypatch.delenv("META_EMBEDDED_SIGNUP_CONFIG_ID", raising=False)
+    monkeypatch.delenv("META_EMBEDDED_SIGNUP_REDIRECT_URI", raising=False)
+
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/embedded/start",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/admin/integrations/whatsapp"
+    page = admin_client.get("/admin/integrations/whatsapp")
+    assert "Configure META_EMBEDDED_SIGNUP_APP_ID" in page.text
+    assert "not-configured" not in page.text
 
 
 def test_embedded_signup_callback_rejects_unknown_state(admin_client: TestClient) -> None:

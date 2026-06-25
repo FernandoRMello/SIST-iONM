@@ -20,6 +20,9 @@
       </div>
       {{ status_badge(settings.setup_status or 'Não configurado', 'neutral') }}
     </header>
+    {% if whatsapp_setup_warning %}
+      <div class="ui-alert ui-alert--warning">{{ whatsapp_setup_warning }}</div>
+    {% endif %}
     <ol class="ui-whatsapp-steps">
       <li><strong>1. Introdução</strong><span>Use a API oficial da Meta com HTTPS público.</span></li>
       <li><strong>2. Credenciais</strong><span>Informe Phone Number ID, WABA ID, token e app secret.</span></li>

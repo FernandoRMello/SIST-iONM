@@ -120,6 +120,10 @@ def create_whatsapp_router(
                     "whatsapp_generated_verify_token",
                     "",
                 ),
+                "whatsapp_setup_warning": request.session.pop(
+                    "whatsapp_setup_warning",
+                    "",
+                ),
                 "webhook_url": webhook_url,
             },
         )
@@ -166,6 +170,25 @@ def create_whatsapp_router(
         if denied:
             return denied
         user = current_user(request) or {}
+        app_id = os.getenv("META_EMBEDDED_SIGNUP_APP_ID")
+        config_id = os.getenv("META_EMBEDDED_SIGNUP_CONFIG_ID")
+        redirect_uri = os.getenv("META_EMBEDDED_SIGNUP_REDIRECT_URI")
+        missing = [
+            name
+            for name, value in {
+                "META_EMBEDDED_SIGNUP_APP_ID": app_id,
+                "META_EMBEDDED_SIGNUP_CONFIG_ID": config_id,
+                "META_EMBEDDED_SIGNUP_REDIRECT_URI": redirect_uri,
+            }.items()
+            if not value
+        ]
+        if missing:
+            request.session["whatsapp_setup_warning"] = (
+                "Configure "
+                + ", ".join(missing)
+                + " no .env antes de conectar com a Meta."
+            )
+            return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
         state_token = secrets.token_urlsafe(32)
         repository().create_embedded_signup_session(
             started_by_user_id=int(user.get("id") or 0),
@@ -173,12 +196,10 @@ def create_whatsapp_router(
         )
         query = urlencode(
             {
-                "client_id": os.getenv("META_EMBEDDED_SIGNUP_APP_ID")
-                or "not-configured",
-                "redirect_uri": embedded_signup_redirect_uri(request),
+                "client_id": app_id,
+                "redirect_uri": redirect_uri or embedded_signup_redirect_uri(request),
                 "state": state_token,
-                "config_id": os.getenv("META_EMBEDDED_SIGNUP_CONFIG_ID")
-                or "not-configured",
+                "config_id": config_id,
             },
         )
         return RedirectResponse(

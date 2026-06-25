@@ -163,9 +163,9 @@ O perfil legado `admin` é fallback seguro e mantém acesso completo. Ao criar u
 
 O menu **RH** contém:
 
-- **Colaboradores**: cadastro, salário base, contrato e criação de usuário vinculado;
-- **Regras de RH**: comissão por lucro ou venda total, benefícios fixos/percentuais, descontos e encargos;
-- **Folha de pagamento**: geração mensal, aprovação, impressão da folha CLT, demonstrativos e marcação como paga.
+- **Colaboradores**: cadastro, edição, exclusão, salário base, contrato e criação de usuário vinculado;
+- **Regras de RH**: criação, edição e exclusão de comissão por lucro ou venda total, benefícios fixos/percentuais, descontos e encargos;
+- **Folha de pagamento**: geração mensal, reabertura para edição, exclusão da competência, aprovação, impressão da folha CLT, demonstrativos e marcação como paga.
 
 Fluxo mínimo:
 
@@ -178,7 +178,7 @@ Fluxo mínimo:
 7. Use **Imprimir folha CLT** para colaboradores CLT e **Demonstrativos** para representantes, PJs e comissionados.
 8. Aprove e marque como paga.
 
-A geração cria itens rastreáveis em `hr_payroll_items`. Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
+A geração cria itens rastreáveis em `hr_payroll_items`. Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. A exclusão de uma competência deve ser feita pelo botão **Apagar folha**, que remove período, itens e histórico daquele período; em operação real, prefira reabrir/regerar quando houver apenas ajuste de cálculo.
 
 Ao criar usuário a partir de um colaborador-vendedor, o `seller_id` é herdado automaticamente. Esse vínculo padroniza comissões, benefícios, pedidos e relatórios sobre a mesma pessoa.
 

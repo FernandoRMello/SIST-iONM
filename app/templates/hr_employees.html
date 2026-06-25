@@ -34,7 +34,7 @@
     <header class="ui-admin-section__header"><div><h2>Equipe</h2></div></header>
     <div class="ui-table-wrapper">
       <table class="ui-table">
-        <thead><tr><th>Nome</th><th>Cargo</th><th>Contrato</th><th>Vendedor</th><th>Status</th><th>Salário</th><th>Usuário</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Contrato</th><th>Vendedor</th><th>Status</th><th>Salário</th><th>Usuário</th><th>Ações</th></tr></thead>
         <tbody>
         {% for employee in employees %}
           <tr>
@@ -59,9 +59,32 @@
                 </form>
               {% endif %}
             </td>
+            <td>
+              <details class="ui-row-editor">
+                <summary class="ui-button ui-button--ghost">Editar</summary>
+                <form class="ui-admin-form ui-admin-form--wide ui-row-editor__form" method="post" action="/hr/employees/{{ employee.id }}/update">
+                  <label class="ui-field"><span class="ui-field__label">Nome</span><input class="ui-field__control" name="full_name" value="{{ employee.full_name }}" required></label>
+                  <label class="ui-field"><span class="ui-field__label">Documento</span><input class="ui-field__control" name="document" value="{{ employee.document or '' }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">E-mail</span><input class="ui-field__control" name="email" type="email" value="{{ employee.email or '' }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">Telefone</span><input class="ui-field__control" name="phone" value="{{ employee.phone or '' }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">Cargo</span><select class="ui-field__control" name="job_title">{% for job_title in job_titles %}<option{% if employee.job_title == job_title %} selected{% endif %}>{{ job_title }}</option>{% endfor %}</select></label>
+                  <label class="ui-field"><span class="ui-field__label">Contrato</span><select class="ui-field__control" name="contract_type">{% for contract_type in contract_types %}<option{% if employee.contract_type == contract_type %} selected{% endif %}>{{ contract_type }}</option>{% endfor %}</select></label>
+                  <label class="ui-field"><span class="ui-field__label">Admissão</span><input class="ui-field__control" name="admission_date" type="date" value="{{ employee.admission_date or '' }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">Status</span><select class="ui-field__control" name="status"><option{% if employee.status == 'Ativo' %} selected{% endif %}>Ativo</option><option{% if employee.status == 'Inativo' %} selected{% endif %}>Inativo</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Salário base</span><input class="ui-field__control" name="base_salary" inputmode="decimal" value="{{ employee.base_salary or 0 }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">Vendedor?</span><select class="ui-field__control" name="is_seller"><option value="Não"{% if employee.is_seller != 'Sim' %} selected{% endif %}>Não</option><option value="Sim"{% if employee.is_seller == 'Sim' %} selected{% endif %}>Sim</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">% comissão</span><input class="ui-field__control" name="seller_commission_rate" inputmode="decimal" value="{{ employee.seller_commission_rate or 0 }}"></label>
+                  <label class="ui-field ui-admin-form__full"><span class="ui-field__label">Observações</span><input class="ui-field__control" name="notes" value="{{ employee.notes or '' }}"></label>
+                  <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Salvar alterações</button></div>
+                </form>
+              </details>
+              <form class="ui-inline-form" method="post" action="/hr/employees/{{ employee.id }}/delete">
+                <button class="ui-button ui-button--danger" type="submit">Apagar</button>
+              </form>
+            </td>
           </tr>
         {% else %}
-          <tr><td colspan="7">Nenhum colaborador cadastrado.</td></tr>
+          <tr><td colspan="8">Nenhum colaborador cadastrado.</td></tr>
         {% endfor %}
         </tbody>
       </table>

@@ -78,6 +78,34 @@
   white-space: nowrap;
 }
 
+.ui-inline-form {
+  display: inline-flex;
+  margin-top: var(--space-2);
+}
+
+.ui-row-editor {
+  min-width: 220px;
+}
+
+.ui-row-editor > summary {
+  width: fit-content;
+  list-style: none;
+  cursor: pointer;
+}
+
+.ui-row-editor > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ui-row-editor__form {
+  min-width: min(720px, 75vw);
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-subtle);
+}
+
 .ui-button--danger {
   border-color: var(--color-error);
   background: var(--color-error);

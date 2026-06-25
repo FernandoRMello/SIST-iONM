@@ -132,6 +132,108 @@ def test_seller_employee_creates_seller_and_user_link(
     assert user[0] == employee["seller_id"]
 
 
+def test_hr_employee_page_exposes_edit_and_delete_actions(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    admin_client.post(
+        "/hr/employees",
+        data={
+            "full_name": "Colaborador Ações QA",
+            "document": "123",
+            "email": "acoes@example.invalid",
+            "phone": "11999990000",
+            "job_title": "Analista",
+            "contract_type": "CLT",
+            "admission_date": "2026-06-01",
+            "status": "Ativo",
+            "base_salary": "3000",
+            "notes": "",
+        },
+    )
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        employee_id = connection.execute(
+            "SELECT id FROM hr_employees WHERE full_name=?",
+            ("Colaborador Ações QA",),
+        ).fetchone()[0]
+
+    page = admin_client.get("/hr/employees")
+
+    assert page.status_code == 200
+    assert f'action="/hr/employees/{employee_id}/update"' in page.text
+    assert f'action="/hr/employees/{employee_id}/delete"' in page.text
+    assert "Salvar alterações" in page.text
+    assert "Apagar" in page.text
+
+
+def test_admin_can_update_and_delete_employee_from_web(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    admin_client.post(
+        "/hr/employees",
+        data={
+            "full_name": "Colaborador Web Editar QA",
+            "document": "123",
+            "email": "editar@example.invalid",
+            "phone": "11999990000",
+            "job_title": "Analista",
+            "contract_type": "CLT",
+            "admission_date": "2026-06-01",
+            "status": "Ativo",
+            "base_salary": "3000",
+            "notes": "",
+        },
+    )
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        employee_id = connection.execute(
+            "SELECT id FROM hr_employees WHERE full_name=?",
+            ("Colaborador Web Editar QA",),
+        ).fetchone()[0]
+
+    updated = admin_client.post(
+        f"/hr/employees/{employee_id}/update",
+        data={
+            "full_name": "Colaborador Web Editado QA",
+            "document": "456",
+            "email": "editado@example.invalid",
+            "phone": "11888880000",
+            "job_title": "Financeiro",
+            "contract_type": "PJ",
+            "admission_date": "2026-06-02",
+            "status": "Inativo",
+            "base_salary": "4500",
+            "is_seller": "Sim",
+            "seller_commission_rate": "7,5",
+            "notes": "Atualizado",
+        },
+        follow_redirects=False,
+    )
+
+    assert updated.status_code == 303
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        connection.row_factory = sqlite3.Row
+        employee = connection.execute(
+            "SELECT * FROM hr_employees WHERE id=?",
+            (employee_id,),
+        ).fetchone()
+    assert employee["full_name"] == "Colaborador Web Editado QA"
+    assert employee["seller_id"] is not None
+
+    deleted = admin_client.post(
+        f"/hr/employees/{employee_id}/delete",
+        follow_redirects=False,
+    )
+
+    assert deleted.status_code == 303
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        missing = connection.execute(
+            "SELECT id FROM hr_employees WHERE id=?",
+            (employee_id,),
+        ).fetchone()
+    assert missing is None
+
+
 def test_admin_can_create_hr_rules_and_generate_payroll(
     admin_client: TestClient,
     legacy_test_state: LegacyTestState,
@@ -196,6 +298,87 @@ def test_admin_can_create_hr_rules_and_generate_payroll(
     page = admin_client.get("/hr/payroll?period=2026-06")
     assert "2026-06" in page.text
     assert "Folha Web QA" in page.text
+
+
+def test_hr_rules_and_payroll_pages_expose_edit_and_delete_actions(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    admin_client.post(
+        "/hr/employees",
+        data={
+            "full_name": "Regras Web Ações QA",
+            "document": "456",
+            "email": "regras.acoes@example.invalid",
+            "phone": "11888880000",
+            "job_title": "Vendedor",
+            "contract_type": "CLT",
+            "admission_date": "2026-06-01",
+            "status": "Ativo",
+            "base_salary": "2000",
+            "notes": "",
+        },
+    )
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        employee_id = connection.execute(
+            "SELECT id FROM hr_employees WHERE full_name=?",
+            ("Regras Web Ações QA",),
+        ).fetchone()[0]
+    admin_client.post(
+        "/hr/commission-rules",
+        data={
+            "name": "Comissão Ações QA",
+            "employee_id": str(employee_id),
+            "basis": "sale_total",
+            "calculation_scope": "company",
+            "fixed_percentage": "1",
+            "is_active": "Sim",
+        },
+    )
+    admin_client.post(
+        "/hr/benefit-rules",
+        data={
+            "name": "Benefício Ações QA",
+            "employee_id": str(employee_id),
+            "benefit_type": "fixed_monthly",
+            "basis": "fixed",
+            "calculation_scope": "individual",
+            "fixed_amount": "300",
+            "percentage": "0",
+            "target_value": "0",
+            "is_active": "Sim",
+        },
+    )
+    admin_client.post(
+        "/hr/payroll-adjustment-rules",
+        data={
+            "name": "Desconto Ações QA",
+            "target_contract": "CLT",
+            "item_type": "discount",
+            "basis": "base_salary",
+            "fixed_amount": "0",
+            "percentage": "5",
+            "is_active": "Sim",
+        },
+    )
+    admin_client.post("/hr/payroll/generate", data={"period": "2026-06"})
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        commission_id = connection.execute("SELECT id FROM hr_commission_rules").fetchone()[0]
+        benefit_id = connection.execute("SELECT id FROM hr_benefit_rules").fetchone()[0]
+        adjustment_id = connection.execute("SELECT id FROM hr_payroll_adjustment_rules").fetchone()[0]
+        period_id = connection.execute("SELECT id FROM hr_payroll_periods WHERE period='2026-06'").fetchone()[0]
+
+    rules_page = admin_client.get("/hr/rules")
+    payroll_page = admin_client.get("/hr/payroll?period=2026-06")
+
+    assert f'action="/hr/commission-rules/{commission_id}/update"' in rules_page.text
+    assert f'action="/hr/commission-rules/{commission_id}/delete"' in rules_page.text
+    assert f'action="/hr/benefit-rules/{benefit_id}/update"' in rules_page.text
+    assert f'action="/hr/benefit-rules/{benefit_id}/delete"' in rules_page.text
+    assert f'action="/hr/payroll-adjustment-rules/{adjustment_id}/update"' in rules_page.text
+    assert f'action="/hr/payroll-adjustment-rules/{adjustment_id}/delete"' in rules_page.text
+    assert f'action="/hr/payroll/{period_id}/reopen"' in payroll_page.text
+    assert f'action="/hr/payroll/{period_id}/delete"' in payroll_page.text
 
 
 def test_payroll_print_and_commission_statement_pages(

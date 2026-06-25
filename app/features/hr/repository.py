@@ -328,6 +328,102 @@ class HRRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def update_employee(
+        self,
+        employee_id: int,
+        *,
+        full_name: str,
+        document: str,
+        email: str,
+        phone: str,
+        job_title: str,
+        contract_type: str,
+        admission_date: str,
+        status: str,
+        base_salary: float,
+        notes: str,
+        is_seller: bool = False,
+        seller_commission_rate: float = 0,
+    ) -> None:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            current = connection.execute(
+                "SELECT seller_id FROM hr_employees WHERE id=?",
+                (employee_id,),
+            ).fetchone()
+            if not current:
+                return
+            seller_id = current["seller_id"]
+            if is_seller:
+                seller_id = self._sync_seller(
+                    connection,
+                    name=full_name,
+                    email=email,
+                    phone=phone,
+                    commission_rate=seller_commission_rate,
+                    active=status == "Ativo",
+                )
+            elif seller_id:
+                connection.execute(
+                    "UPDATE sellers SET active='Não' WHERE id=?",
+                    (seller_id,),
+                )
+                seller_id = None
+            connection.execute(
+                """
+                UPDATE hr_employees
+                SET seller_id=?, is_seller=?, seller_commission_rate=?,
+                    full_name=?, document=?, email=?, phone=?, job_title=?,
+                    contract_type=?, admission_date=?, status=?, base_salary=?,
+                    notes=?, updated_at=?
+                WHERE id=?
+                """,
+                (
+                    seller_id,
+                    "Sim" if is_seller else "Não",
+                    float(seller_commission_rate or 0),
+                    full_name.strip(),
+                    document.strip(),
+                    email.strip(),
+                    phone.strip(),
+                    job_title.strip(),
+                    contract_type.strip() or "CLT",
+                    admission_date,
+                    status or "Ativo",
+                    float(base_salary or 0),
+                    notes.strip(),
+                    now,
+                    employee_id,
+                ),
+            )
+            connection.commit()
+
+    def delete_employee(self, employee_id: int) -> None:
+        self.init_schema()
+        with self.connect() as connection:
+            employee = connection.execute(
+                "SELECT seller_id FROM hr_employees WHERE id=?",
+                (employee_id,),
+            ).fetchone()
+            if employee and employee["seller_id"]:
+                connection.execute(
+                    "UPDATE sellers SET active='Não' WHERE id=?",
+                    (employee["seller_id"],),
+                )
+            connection.execute("DELETE FROM hr_payment_history WHERE employee_id=?", (employee_id,))
+            connection.execute("DELETE FROM hr_payroll_items WHERE employee_id=?", (employee_id,))
+            connection.execute(
+                "UPDATE hr_commission_rules SET employee_id=NULL WHERE employee_id=?",
+                (employee_id,),
+            )
+            connection.execute(
+                "UPDATE hr_benefit_rules SET employee_id=NULL WHERE employee_id=?",
+                (employee_id,),
+            )
+            connection.execute("DELETE FROM hr_employees WHERE id=?", (employee_id,))
+            connection.commit()
+
     def create_commission_rule(
         self,
         *,
@@ -419,6 +515,47 @@ class HRRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def update_commission_rule(
+        self,
+        rule_id: int,
+        *,
+        name: str,
+        employee_id: int | None,
+        basis: str,
+        calculation_scope: str,
+        fixed_percentage: float,
+        is_active: bool,
+    ) -> None:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE hr_commission_rules
+                SET name=?, employee_id=?, basis=?, calculation_scope=?,
+                    percentage_type='fixed', fixed_percentage=?, is_active=?, updated_at=?
+                WHERE id=?
+                """,
+                (
+                    name.strip(),
+                    employee_id,
+                    basis,
+                    calculation_scope,
+                    float(fixed_percentage or 0),
+                    "Sim" if is_active else "Não",
+                    now,
+                    rule_id,
+                ),
+            )
+            connection.commit()
+
+    def delete_commission_rule(self, rule_id: int) -> None:
+        self.init_schema()
+        with self.connect() as connection:
+            connection.execute("DELETE FROM hr_commission_tiers WHERE rule_id=?", (rule_id,))
+            connection.execute("DELETE FROM hr_commission_rules WHERE id=?", (rule_id,))
+            connection.commit()
+
     def benefit_rules(self) -> list[dict[str, Any]]:
         self.init_schema()
         with self.connect() as connection:
@@ -426,6 +563,52 @@ class HRRepository:
                 "SELECT * FROM hr_benefit_rules ORDER BY id DESC",
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def update_benefit_rule(
+        self,
+        rule_id: int,
+        *,
+        name: str,
+        employee_id: int | None,
+        benefit_type: str,
+        basis: str,
+        calculation_scope: str,
+        fixed_amount: float,
+        percentage: float,
+        target_value: float,
+        is_active: bool,
+    ) -> None:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE hr_benefit_rules
+                SET name=?, employee_id=?, benefit_type=?, basis=?, calculation_scope=?,
+                    fixed_amount=?, percentage=?, target_value=?, is_active=?, updated_at=?
+                WHERE id=?
+                """,
+                (
+                    name.strip(),
+                    employee_id,
+                    benefit_type,
+                    basis,
+                    calculation_scope,
+                    float(fixed_amount or 0),
+                    float(percentage or 0),
+                    float(target_value or 0),
+                    "Sim" if is_active else "Não",
+                    now,
+                    rule_id,
+                ),
+            )
+            connection.commit()
+
+    def delete_benefit_rule(self, rule_id: int) -> None:
+        self.init_schema()
+        with self.connect() as connection:
+            connection.execute("DELETE FROM hr_benefit_rules WHERE id=?", (rule_id,))
+            connection.commit()
 
     def create_payroll_adjustment_rule(
         self,
@@ -471,6 +654,48 @@ class HRRepository:
                 "SELECT * FROM hr_payroll_adjustment_rules ORDER BY id DESC",
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def update_payroll_adjustment_rule(
+        self,
+        rule_id: int,
+        *,
+        name: str,
+        target_contract: str,
+        item_type: str,
+        basis: str,
+        fixed_amount: float,
+        percentage: float,
+        is_active: bool,
+    ) -> None:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE hr_payroll_adjustment_rules
+                SET name=?, target_contract=?, item_type=?, basis=?,
+                    fixed_amount=?, percentage=?, is_active=?, updated_at=?
+                WHERE id=?
+                """,
+                (
+                    name.strip(),
+                    target_contract.strip() or "CLT",
+                    item_type.strip() or "discount",
+                    basis.strip() or "base_salary",
+                    float(fixed_amount or 0),
+                    float(percentage or 0),
+                    "Sim" if is_active else "Não",
+                    now,
+                    rule_id,
+                ),
+            )
+            connection.commit()
+
+    def delete_payroll_adjustment_rule(self, rule_id: int) -> None:
+        self.init_schema()
+        with self.connect() as connection:
+            connection.execute("DELETE FROM hr_payroll_adjustment_rules WHERE id=?", (rule_id,))
+            connection.commit()
 
     def payroll_periods(self) -> list[dict[str, Any]]:
         self.init_schema()
@@ -809,6 +1034,20 @@ class HRRepository:
                 (period_id,),
             ).fetchone()
         return dict(row) if row else None
+
+    def delete_payroll_period(self, period_id: int) -> None:
+        self.init_schema()
+        with self.connect() as connection:
+            connection.execute(
+                "DELETE FROM hr_payment_history WHERE payroll_period_id=?",
+                (period_id,),
+            )
+            connection.execute(
+                "DELETE FROM hr_payroll_items WHERE payroll_period_id=?",
+                (period_id,),
+            )
+            connection.execute("DELETE FROM hr_payroll_periods WHERE id=?", (period_id,))
+            connection.commit()
 
     def employee_payment_summary(self, period_id: int, employee_id: int) -> dict[str, Any]:
         self.init_schema()

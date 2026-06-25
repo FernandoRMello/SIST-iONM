@@ -110,6 +110,37 @@ def create_hr_router(
         )
         return RedirectResponse("/hr/employees", status_code=303)
 
+    @router.post("/hr/employees/{employee_id}/update")
+    async def employee_update(request: Request, employee_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        form = await request.form()
+        hr_repository().update_employee(
+            employee_id,
+            full_name=str(form.get("full_name") or ""),
+            document=str(form.get("document") or ""),
+            email=str(form.get("email") or ""),
+            phone=str(form.get("phone") or ""),
+            job_title=str(form.get("job_title") or ""),
+            contract_type=str(form.get("contract_type") or "CLT"),
+            admission_date=str(form.get("admission_date") or ""),
+            status=str(form.get("status") or "Ativo"),
+            base_salary=_to_float(form.get("base_salary")),
+            notes=str(form.get("notes") or ""),
+            is_seller=str(form.get("is_seller") or "") == "Sim",
+            seller_commission_rate=_to_float(form.get("seller_commission_rate")),
+        )
+        return RedirectResponse("/hr/employees", status_code=303)
+
+    @router.post("/hr/employees/{employee_id}/delete")
+    def employee_delete(request: Request, employee_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        hr_repository().delete_employee(employee_id)
+        return RedirectResponse("/hr/employees", status_code=303)
+
     @router.post("/hr/employees/{employee_id}/create-user")
     async def employee_create_user(request: Request, employee_id: int):
         denied = require_permission(request, "users.manage")
@@ -199,6 +230,32 @@ def create_hr_router(
         )
         return RedirectResponse("/hr/rules", status_code=303)
 
+    @router.post("/hr/commission-rules/{rule_id}/update")
+    async def commission_rule_update(request: Request, rule_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        form = await request.form()
+        raw_employee_id = str(form.get("employee_id") or "").strip()
+        hr_repository().update_commission_rule(
+            rule_id,
+            name=str(form.get("name") or ""),
+            employee_id=int(raw_employee_id) if raw_employee_id.isdigit() else None,
+            basis=str(form.get("basis") or "sale_total"),
+            calculation_scope=str(form.get("calculation_scope") or "company"),
+            fixed_percentage=_to_float(form.get("fixed_percentage")),
+            is_active=str(form.get("is_active") or "") == "Sim",
+        )
+        return RedirectResponse("/hr/rules", status_code=303)
+
+    @router.post("/hr/commission-rules/{rule_id}/delete")
+    def commission_rule_delete(request: Request, rule_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        hr_repository().delete_commission_rule(rule_id)
+        return RedirectResponse("/hr/rules", status_code=303)
+
     @router.post("/hr/payroll-adjustment-rules")
     async def payroll_adjustment_rule_create(request: Request):
         denied = require_permission(request, "hr.manage")
@@ -214,6 +271,32 @@ def create_hr_router(
             percentage=_to_float(form.get("percentage")),
             is_active=str(form.get("is_active") or "") == "Sim",
         )
+        return RedirectResponse("/hr/rules", status_code=303)
+
+    @router.post("/hr/payroll-adjustment-rules/{rule_id}/update")
+    async def payroll_adjustment_rule_update(request: Request, rule_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        form = await request.form()
+        hr_repository().update_payroll_adjustment_rule(
+            rule_id,
+            name=str(form.get("name") or ""),
+            target_contract=str(form.get("target_contract") or "CLT"),
+            item_type=str(form.get("item_type") or "discount"),
+            basis=str(form.get("basis") or "base_salary"),
+            fixed_amount=_to_float(form.get("fixed_amount")),
+            percentage=_to_float(form.get("percentage")),
+            is_active=str(form.get("is_active") or "") == "Sim",
+        )
+        return RedirectResponse("/hr/rules", status_code=303)
+
+    @router.post("/hr/payroll-adjustment-rules/{rule_id}/delete")
+    def payroll_adjustment_rule_delete(request: Request, rule_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        hr_repository().delete_payroll_adjustment_rule(rule_id)
         return RedirectResponse("/hr/rules", status_code=303)
 
     @router.post("/hr/benefit-rules")
@@ -235,6 +318,35 @@ def create_hr_router(
             target_value=_to_float(form.get("target_value")),
             is_active=str(form.get("is_active") or "") == "Sim",
         )
+        return RedirectResponse("/hr/rules", status_code=303)
+
+    @router.post("/hr/benefit-rules/{rule_id}/update")
+    async def benefit_rule_update(request: Request, rule_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        form = await request.form()
+        raw_employee_id = str(form.get("employee_id") or "").strip()
+        hr_repository().update_benefit_rule(
+            rule_id,
+            name=str(form.get("name") or ""),
+            employee_id=int(raw_employee_id) if raw_employee_id.isdigit() else None,
+            benefit_type=str(form.get("benefit_type") or "fixed_monthly"),
+            basis=str(form.get("basis") or "fixed"),
+            calculation_scope=str(form.get("calculation_scope") or "individual"),
+            fixed_amount=_to_float(form.get("fixed_amount")),
+            percentage=_to_float(form.get("percentage")),
+            target_value=_to_float(form.get("target_value")),
+            is_active=str(form.get("is_active") or "") == "Sim",
+        )
+        return RedirectResponse("/hr/rules", status_code=303)
+
+    @router.post("/hr/benefit-rules/{rule_id}/delete")
+    def benefit_rule_delete(request: Request, rule_id: int):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        hr_repository().delete_benefit_rule(rule_id)
         return RedirectResponse("/hr/rules", status_code=303)
 
     @router.get("/hr/payroll")
@@ -344,6 +456,26 @@ def create_hr_router(
             status="Paga",
             user_id=int((current_user(request) or {}).get("id") or 0),
         )
+        return RedirectResponse("/hr/payroll", status_code=303)
+
+    @router.post("/hr/payroll/{period_id}/reopen")
+    def payroll_reopen(request: Request, period_id: int):
+        denied = require_permission(request, "hr.payroll.process")
+        if denied:
+            return denied
+        hr_repository().set_payroll_status(
+            period_id=period_id,
+            status="Rascunho",
+            user_id=int((current_user(request) or {}).get("id") or 0),
+        )
+        return RedirectResponse("/hr/payroll", status_code=303)
+
+    @router.post("/hr/payroll/{period_id}/delete")
+    def payroll_delete(request: Request, period_id: int):
+        denied = require_permission(request, "hr.payroll.process")
+        if denied:
+            return denied
+        hr_repository().delete_payroll_period(period_id)
         return RedirectResponse("/hr/payroll", status_code=303)
 
     return router

@@ -63,16 +63,71 @@
     <header class="ui-admin-section__header"><div><h2>Regras cadastradas</h2></div></header>
     <div class="ui-table-wrapper">
       <table class="ui-table">
-        <thead><tr><th>Tipo</th><th>Nome</th><th>Base</th><th>Percentual/Valor</th><th>Ativa</th></tr></thead>
+        <thead><tr><th>Tipo</th><th>Nome</th><th>Base</th><th>Percentual/Valor</th><th>Ativa</th><th>Ações</th></tr></thead>
         <tbody>
         {% for rule in commission_rules %}
-          <tr><td>Comissão</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ rule.fixed_percentage }}%</td><td>{{ rule.is_active }}</td></tr>
+          <tr>
+            <td>Comissão</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ rule.fixed_percentage }}%</td><td>{{ rule.is_active }}</td>
+            <td>
+              <details class="ui-row-editor">
+                <summary class="ui-button ui-button--ghost">Editar</summary>
+                <form class="ui-admin-form ui-admin-form--wide ui-row-editor__form" method="post" action="/hr/commission-rules/{{ rule.id }}/update">
+                  <label class="ui-field"><span class="ui-field__label">Nome</span><input class="ui-field__control" name="name" value="{{ rule.name }}" required></label>
+                  <label class="ui-field"><span class="ui-field__label">Colaborador</span><select class="ui-field__control" name="employee_id"><option value="">Todos</option>{% for employee in employees %}<option value="{{ employee.id }}"{% if rule.employee_id == employee.id %} selected{% endif %}>{{ employee.full_name }}</option>{% endfor %}</select></label>
+                  <label class="ui-field"><span class="ui-field__label">Base</span><select class="ui-field__control" name="basis"><option value="profit"{% if rule.basis == 'profit' %} selected{% endif %}>Lucro</option><option value="sale_total"{% if rule.basis == 'sale_total' %} selected{% endif %}>Venda total</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Escopo</span><select class="ui-field__control" name="calculation_scope"><option value="individual"{% if rule.calculation_scope == 'individual' %} selected{% endif %}>Individual</option><option value="company"{% if rule.calculation_scope == 'company' %} selected{% endif %}>Geral da empresa</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Percentual</span><input class="ui-field__control" name="fixed_percentage" inputmode="decimal" value="{{ rule.fixed_percentage or 0 }}"></label>
+                  <label><input type="checkbox" name="is_active" value="Sim"{% if rule.is_active == 'Sim' %} checked{% endif %}> Ativa</label>
+                  <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Salvar alterações</button></div>
+                </form>
+              </details>
+              <form class="ui-inline-form" method="post" action="/hr/commission-rules/{{ rule.id }}/delete"><button class="ui-button ui-button--danger" type="submit">Apagar</button></form>
+            </td>
+          </tr>
         {% endfor %}
         {% for rule in benefit_rules %}
-          <tr><td>Benefício</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td></tr>
+          <tr>
+            <td>Benefício</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td>
+            <td>
+              <details class="ui-row-editor">
+                <summary class="ui-button ui-button--ghost">Editar</summary>
+                <form class="ui-admin-form ui-admin-form--wide ui-row-editor__form" method="post" action="/hr/benefit-rules/{{ rule.id }}/update">
+                  <label class="ui-field"><span class="ui-field__label">Nome</span><input class="ui-field__control" name="name" value="{{ rule.name }}" required></label>
+                  <label class="ui-field"><span class="ui-field__label">Colaborador</span><select class="ui-field__control" name="employee_id"><option value="">Todos</option>{% for employee in employees %}<option value="{{ employee.id }}"{% if rule.employee_id == employee.id %} selected{% endif %}>{{ employee.full_name }}</option>{% endfor %}</select></label>
+                  <label class="ui-field"><span class="ui-field__label">Tipo</span><select class="ui-field__control" name="benefit_type"><option value="fixed_monthly"{% if rule.benefit_type == 'fixed_monthly' %} selected{% endif %}>Fixo mensal</option><option value="performance"{% if rule.benefit_type == 'performance' %} selected{% endif %}>Desempenho</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Base</span><select class="ui-field__control" name="basis"><option value="fixed"{% if rule.basis == 'fixed' %} selected{% endif %}>Fixo</option><option value="commission"{% if rule.basis == 'commission' %} selected{% endif %}>Comissão</option><option value="profit"{% if rule.basis == 'profit' %} selected{% endif %}>Lucro</option><option value="sale_total"{% if rule.basis == 'sale_total' %} selected{% endif %}>Venda total</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Escopo</span><select class="ui-field__control" name="calculation_scope"><option value="individual"{% if rule.calculation_scope == 'individual' %} selected{% endif %}>Individual</option><option value="company"{% if rule.calculation_scope == 'company' %} selected{% endif %}>Geral da empresa</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Valor fixo</span><input class="ui-field__control" name="fixed_amount" inputmode="decimal" value="{{ rule.fixed_amount or 0 }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">Percentual</span><input class="ui-field__control" name="percentage" inputmode="decimal" value="{{ rule.percentage or 0 }}"></label>
+                  <input type="hidden" name="target_value" value="{{ rule.target_value or 0 }}">
+                  <label><input type="checkbox" name="is_active" value="Sim"{% if rule.is_active == 'Sim' %} checked{% endif %}> Ativa</label>
+                  <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Salvar alterações</button></div>
+                </form>
+              </details>
+              <form class="ui-inline-form" method="post" action="/hr/benefit-rules/{{ rule.id }}/delete"><button class="ui-button ui-button--danger" type="submit">Apagar</button></form>
+            </td>
+          </tr>
         {% endfor %}
         {% for rule in adjustment_rules %}
-          <tr><td>{{ 'Encargo' if rule.item_type == 'employer_charge' else 'Desconto' }}</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td></tr>
+          <tr>
+            <td>{{ 'Encargo' if rule.item_type == 'employer_charge' else 'Desconto' }}</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td>
+            <td>
+              <details class="ui-row-editor">
+                <summary class="ui-button ui-button--ghost">Editar</summary>
+                <form class="ui-admin-form ui-admin-form--wide ui-row-editor__form" method="post" action="/hr/payroll-adjustment-rules/{{ rule.id }}/update">
+                  <label class="ui-field"><span class="ui-field__label">Nome</span><input class="ui-field__control" name="name" value="{{ rule.name }}" required></label>
+                  <label class="ui-field"><span class="ui-field__label">Contrato alvo</span><select class="ui-field__control" name="target_contract">{% for option in ['CLT','PJ','Representante','Todos'] %}<option{% if rule.target_contract == option %} selected{% endif %}>{{ option }}</option>{% endfor %}</select></label>
+                  <label class="ui-field"><span class="ui-field__label">Tipo</span><select class="ui-field__control" name="item_type"><option value="discount"{% if rule.item_type == 'discount' %} selected{% endif %}>Desconto do colaborador</option><option value="employer_charge"{% if rule.item_type == 'employer_charge' %} selected{% endif %}>Encargo da empresa</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Base</span><select class="ui-field__control" name="basis"><option value="base_salary"{% if rule.basis == 'base_salary' %} selected{% endif %}>Salário base</option><option value="gross_pay"{% if rule.basis == 'gross_pay' %} selected{% endif %}>Valor bruto gerado</option><option value="sale_total"{% if rule.basis == 'sale_total' %} selected{% endif %}>Venda total</option><option value="profit"{% if rule.basis == 'profit' %} selected{% endif %}>Lucro</option></select></label>
+                  <label class="ui-field"><span class="ui-field__label">Valor fixo</span><input class="ui-field__control" name="fixed_amount" inputmode="decimal" value="{{ rule.fixed_amount or 0 }}"></label>
+                  <label class="ui-field"><span class="ui-field__label">Percentual</span><input class="ui-field__control" name="percentage" inputmode="decimal" value="{{ rule.percentage or 0 }}"></label>
+                  <label><input type="checkbox" name="is_active" value="Sim"{% if rule.is_active == 'Sim' %} checked{% endif %}> Ativa</label>
+                  <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Salvar alterações</button></div>
+                </form>
+              </details>
+              <form class="ui-inline-form" method="post" action="/hr/payroll-adjustment-rules/{{ rule.id }}/delete"><button class="ui-button ui-button--danger" type="submit">Apagar</button></form>
+            </td>
+          </tr>
         {% endfor %}
         </tbody>
       </table>

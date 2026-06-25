@@ -154,6 +154,150 @@ def test_seller_employee_is_synced_with_sellers_catalog(tmp_path: Path) -> None:
     assert seller == ("Representante QA", "representante@example.invalid", "11777777777", 12.5, "Sim")
 
 
+def test_employee_can_be_updated_and_deleted(tmp_path: Path) -> None:
+    repository = _prepare_database(tmp_path / "hr.db")
+    employee_id = repository.create_employee(
+        full_name="Colaborador Editável",
+        document="123",
+        email="editavel@example.invalid",
+        phone="11999999999",
+        department_id=None,
+        job_title="Analista",
+        contract_type="CLT",
+        admission_date="2026-06-01",
+        status="Ativo",
+        base_salary=2500,
+        user_id=None,
+        manager_user_id=None,
+        notes="Original",
+    )
+
+    repository.update_employee(
+        employee_id,
+        full_name="Colaborador Revisado",
+        document="456",
+        email="revisado@example.invalid",
+        phone="11888888888",
+        job_title="Financeiro",
+        contract_type="PJ",
+        admission_date="2026-06-02",
+        status="Inativo",
+        base_salary=3200,
+        notes="Revisado",
+        is_seller=True,
+        seller_commission_rate=7.5,
+    )
+
+    updated = repository.employee(employee_id)
+    assert updated["full_name"] == "Colaborador Revisado"
+    assert updated["contract_type"] == "PJ"
+    assert updated["base_salary"] == 3200
+    assert updated["is_seller"] == "Sim"
+    assert updated["seller_id"] is not None
+
+    repository.delete_employee(employee_id)
+
+    assert repository.employee(employee_id) is None
+
+
+def test_hr_rules_and_payroll_period_can_be_updated_and_deleted(tmp_path: Path) -> None:
+    repository = _prepare_database(tmp_path / "hr.db")
+    employee_id = repository.create_employee(
+        full_name="Regras QA",
+        document="123",
+        email="regras@example.invalid",
+        phone="11999999999",
+        department_id=None,
+        job_title="Vendedor",
+        contract_type="CLT",
+        admission_date="2026-06-01",
+        status="Ativo",
+        base_salary=2000,
+        user_id=None,
+        manager_user_id=None,
+        notes="",
+    )
+    commission_id = repository.create_commission_rule(
+        name="Comissão antiga",
+        employee_id=employee_id,
+        profile_id=None,
+        basis="sale_total",
+        calculation_scope="company",
+        percentage_type="fixed",
+        fixed_percentage=2,
+        is_active=True,
+    )
+    benefit_id = repository.create_benefit_rule(
+        name="Benefício antigo",
+        employee_id=employee_id,
+        profile_id=None,
+        benefit_type="fixed_monthly",
+        basis="fixed",
+        calculation_scope="individual",
+        fixed_amount=100,
+        percentage=0,
+        target_value=0,
+        is_active=True,
+    )
+    adjustment_id = repository.create_payroll_adjustment_rule(
+        name="Desconto antigo",
+        target_contract="CLT",
+        item_type="discount",
+        basis="base_salary",
+        fixed_amount=0,
+        percentage=5,
+        is_active=True,
+    )
+
+    repository.update_commission_rule(
+        commission_id,
+        name="Comissão revisada",
+        employee_id=None,
+        basis="profit",
+        calculation_scope="individual",
+        fixed_percentage=3.5,
+        is_active=False,
+    )
+    repository.update_benefit_rule(
+        benefit_id,
+        name="Benefício revisado",
+        employee_id=None,
+        benefit_type="performance",
+        basis="commission",
+        calculation_scope="company",
+        fixed_amount=0,
+        percentage=10,
+        target_value=0,
+        is_active=False,
+    )
+    repository.update_payroll_adjustment_rule(
+        adjustment_id,
+        name="Encargo revisado",
+        target_contract="Todos",
+        item_type="employer_charge",
+        basis="gross_pay",
+        fixed_amount=10,
+        percentage=1.5,
+        is_active=False,
+    )
+
+    assert repository.commission_rules()[0]["name"] == "Comissão revisada"
+    assert repository.commission_rules()[0]["is_active"] == "Não"
+    assert repository.benefit_rules()[0]["basis"] == "commission"
+    assert repository.payroll_adjustment_rules()[0]["item_type"] == "employer_charge"
+
+    period_id = repository.generate_payroll_period(period="2026-06", created_by_user_id=1)
+    repository.delete_commission_rule(commission_id)
+    repository.delete_benefit_rule(benefit_id)
+    repository.delete_payroll_adjustment_rule(adjustment_id)
+    repository.delete_payroll_period(period_id)
+
+    assert repository.commission_rules() == []
+    assert repository.benefit_rules() == []
+    assert repository.payroll_adjustment_rules() == []
+    assert repository.payroll_period(period_id) is None
+
+
 def test_clt_payroll_generates_discounts_charges_and_net_summary(
     tmp_path: Path,
 ) -> None:

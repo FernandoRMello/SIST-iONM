@@ -6,6 +6,7 @@ from app.features.whatsapp.security import hash_state_token
 from app.features.whatsapp.service import (
     handle_inbound_message,
     normalize_inbound_payload,
+    resolve_automation_reply,
 )
 
 
@@ -119,3 +120,31 @@ def test_embedded_signup_session_is_completed_by_state_hash(tmp_path: Path) -> N
     assert completed is True
     assert session["status"] == "completed"
     assert "phone_number_id" in session["provider_payload_json"]
+
+
+def test_finance_keyword_without_client_returns_safe_handoff(tmp_path: Path) -> None:
+    repository = _prepare_database(tmp_path / "whatsapp.db")
+    contact = repository.upsert_contact("5511999990000", "Cliente")
+    repository.create_automation_rule(
+        name="Financeiro",
+        trigger_type="keyword",
+        trigger_value="fatura,boleto",
+        response_type="safe_finance_lookup",
+        response_text="",
+        target_department_id=None,
+        is_active=True,
+        created_by_user_id=1,
+    )
+
+    reply = resolve_automation_reply(repository, contact, "quero minha fatura")
+
+    assert "preciso confirmar seu cadastro" in reply
+
+
+def test_human_keyword_routes_to_attendant(tmp_path: Path) -> None:
+    repository = _prepare_database(tmp_path / "whatsapp.db")
+    contact = repository.upsert_contact("5511999990001", "Cliente")
+
+    reply = resolve_automation_reply(repository, contact, "falar com atendente")
+
+    assert "encaminhar para um atendente" in reply

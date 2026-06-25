@@ -4,6 +4,13 @@ from typing import Any
 
 from app.features.whatsapp.repository import WhatsAppSettingsRepository
 
+SAFE_CONFIRMATION_REPLY = (
+    "Encontrei sua solicitação, mas preciso confirmar seu cadastro antes de "
+    "mostrar informações financeiras ou pedidos. Vou encaminhar para um atendente."
+)
+HUMAN_HANDOFF_REPLY = "Recebi sua mensagem e vou encaminhar para um atendente."
+HUMAN_HANDOFF_KEYWORDS = ("atendente", "humano", "pessoa", "suporte")
+
 
 @dataclass(frozen=True)
 class InboundWhatsAppMessage:
@@ -71,6 +78,47 @@ def _next_triage_reply(repository: WhatsAppSettingsRepository, contact_id: int) 
     return "Recebi sua mensagem e vou encaminhar para um atendente."
 
 
+def _content_matches_keywords(content: str, trigger_value: str) -> bool:
+    normalized_content = content.lower()
+    keywords = [
+        keyword.strip().lower()
+        for keyword in trigger_value.split(",")
+        if keyword.strip()
+    ]
+    return any(keyword in normalized_content for keyword in keywords)
+
+
+def resolve_automation_reply(
+    repository: WhatsAppSettingsRepository,
+    contact: dict[str, Any],
+    content: str,
+) -> str:
+    normalized_content = content.lower()
+    if any(keyword in normalized_content for keyword in HUMAN_HANDOFF_KEYWORDS):
+        return HUMAN_HANDOFF_REPLY
+
+    for rule in repository.automation_rules():
+        if rule.get("is_active") == "Não":
+            continue
+        if rule.get("trigger_type") != "keyword":
+            continue
+        if not _content_matches_keywords(content, str(rule.get("trigger_value") or "")):
+            continue
+
+        response_type = str(rule.get("response_type") or "")
+        if response_type == "human_handoff":
+            return HUMAN_HANDOFF_REPLY
+        if response_type in {"safe_finance_lookup", "safe_order_lookup"}:
+            if not contact.get("client_id"):
+                return SAFE_CONFIRMATION_REPLY
+        if response_type == "static_reply" and rule.get("response_text"):
+            return str(rule["response_text"])
+        if rule.get("response_text"):
+            return str(rule["response_text"])
+
+    return ""
+
+
 def handle_inbound_message(
     repository: WhatsAppSettingsRepository,
     message: InboundWhatsAppMessage,
@@ -93,9 +141,13 @@ def handle_inbound_message(
             message.profile_name or message.from_phone,
             message.content,
         )
+    automation_reply = (
+        resolve_automation_reply(repository, contact, message.content) if created else ""
+    )
     return WhatsAppInboundResult(
         created=created,
-        auto_reply=_next_triage_reply(repository, int(contact["id"])) if created else "",
+        auto_reply=automation_reply
+        or (_next_triage_reply(repository, int(contact["id"])) if created else ""),
         conversation_id=int(conversation["id"]),
         chat_room_id=int(conversation["chat_room_id"]),
     )

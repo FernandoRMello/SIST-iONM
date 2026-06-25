@@ -124,6 +124,8 @@ As permissões usadas pelo RH são `hr.view`, `hr.manage`, `hr.payroll.view`, `h
 
 Quando um colaborador é marcado como vendedor/representante, `HRRepository.create_employee()` sincroniza o registro na tabela `sellers` e grava `hr_employees.seller_id`. Ao criar o usuário a partir do colaborador, o mesmo `seller_id` é aplicado em `users.seller_id`. Essa é a regra padrão: não duplicar pessoa em RH e Cadastros; o colaborador é o cadastro mestre, e o vendedor é a projeção comercial necessária para pedidos, comissões e relatórios.
 
+Comissões e benefícios da folha usam os pedidos reais do sistema. Quando não existir resumo em `orders.total_amount/overprice`, o repositório calcula a base por `orders → opportunities → opportunity_items`. Benefícios com base `commission` são calculados depois das comissões.
+
 ## Importação de clientes e fornecedores
 
 | Arquivo | Responsabilidade |

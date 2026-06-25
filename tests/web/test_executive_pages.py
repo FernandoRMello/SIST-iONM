@@ -1,7 +1,10 @@
 import re
+import sqlite3
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+
+from tests.conftest import LegacyTestState
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATES = REPO_ROOT / "app" / "templates"
@@ -33,6 +36,38 @@ def test_bi_has_explicit_executive_sections_and_no_inline_handlers(
     ):
         assert heading in response.text
     assert not re.search(r"\son(?:click|change|submit)=", response.text, re.IGNORECASE)
+
+
+def test_dashboard_and_bi_include_overdue_payables(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO payables(description,category,amount,due_date,status,notes)
+            VALUES(?,?,?,?,?,?)
+            """,
+            (
+                "Conta vencida BI QA",
+                "Fornecedor",
+                1234,
+                "2026-06-10",
+                "Vencido",
+                "Obrigação vencida deve entrar na visão gerencial",
+            ),
+        )
+        connection.commit()
+
+    dashboard = admin_client.get("/")
+    bi = admin_client.get("/bi-gerencial")
+
+    assert dashboard.status_code == 200
+    assert "R$ 2.233,00" in dashboard.text
+    assert bi.status_code == 200
+    assert "R$ 2.233,00" in bi.text
+    assert "Compromissos a pagar" in bi.text
+    assert "Conta vencida BI QA" in bi.text
 
 
 def test_login_is_labelled_local_and_password_toggle_is_accessible(

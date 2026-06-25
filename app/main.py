@@ -56,6 +56,7 @@ CHAT_ATTACHMENT_EXTENSIONS = {
     ".ppt", ".pptx", ".txt", ".webp", ".xls", ".xlsx", ".zip",
 }
 CHAT_IMAGE_EXTENSIONS = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
+OPEN_FINANCIAL_STATUSES = ("Aberto", "Vencido", "Inadimplente", "Agendado")
 
 for folder in [DATA_DIR, PDF_DIR, XML_DIR, UPLOAD_DIR]:
     folder.mkdir(parents=True, exist_ok=True)
@@ -1016,6 +1017,36 @@ def opportunity_kpis(seller_id=None):
     """, params, one=True)
 
 
+def open_payables_total():
+    placeholders = ",".join("?" for _ in OPEN_FINANCIAL_STATUSES)
+    return q(
+        f"""
+        SELECT COALESCE(SUM(amount),0) AS total
+        FROM payables
+        WHERE status IN ({placeholders})
+        """,
+        OPEN_FINANCIAL_STATUSES,
+        one=True,
+    )["total"]
+
+
+def recent_open_payables(limit=8):
+    placeholders = ",".join("?" for _ in OPEN_FINANCIAL_STATUSES)
+    return q(
+        f"""
+        SELECT p.*, od.order_number, s.name AS seller_name, sp.name AS supplier_name
+        FROM payables p
+        LEFT JOIN orders od ON od.id=p.order_id
+        LEFT JOIN sellers s ON s.id=p.seller_id
+        LEFT JOIN suppliers sp ON sp.id=p.supplier_id
+        WHERE p.status IN ({placeholders})
+        ORDER BY COALESCE(p.due_date,''), p.id DESC
+        LIMIT ?
+        """,
+        (*OPEN_FINANCIAL_STATUSES, limit),
+    )
+
+
 def order_summary(order_id):
     order = q("""
         SELECT od.*, o.ro_number, o.id AS opportunity_id
@@ -1377,8 +1408,7 @@ def dashboard(request: Request):
     financial_totals = q("""
         SELECT
             (SELECT COUNT(*) FROM orders) AS orders,
-            (SELECT COALESCE(SUM(amount),0) FROM receivables WHERE status IN ('Aberto','Vencido','Inadimplente')) AS recv,
-            (SELECT COALESCE(SUM(amount),0) FROM payables WHERE status='Aberto') AS pay
+            (SELECT COALESCE(SUM(amount),0) FROM receivables WHERE status IN ('Aberto','Vencido','Inadimplente')) AS recv
     """, one=True)
 
     kpis = {
@@ -1387,7 +1417,7 @@ def dashboard(request: Request):
         "over": opportunity_totals["weighted_overprice"],
         "comm": opportunity_totals["total_commission"],
         "recv": financial_totals["recv"],
-        "pay": financial_totals["pay"],
+        "pay": open_payables_total(),
     }
     return render(request, "dashboard.html", {"kpis": kpis, "opps": opportunities})
 
@@ -2411,7 +2441,7 @@ def bi_gerencial(request: Request):
 
     opportunities = [opp_summary(row["id"]) for row in opp_rows]
     receivables_total = q("SELECT COALESCE(SUM(amount),0) AS total FROM receivables WHERE status IN ('Aberto','Vencido','Inadimplente')", one=True)["total"]
-    payables_total = q("SELECT COALESCE(SUM(amount),0) AS total FROM payables WHERE status='Aberto'", one=True)["total"]
+    payables_total = open_payables_total()
     costs_total = q("SELECT COALESCE(SUM(amount),0) AS total FROM costs", one=True)["total"]
 
     active = [o for o in opportunities if o.get("status") not in ["Perdido", "Cancelado"]]
@@ -2477,6 +2507,7 @@ def bi_gerencial(request: Request):
         "product_focus": product_focus,
         "client_focus": client_focus,
         "opps": opportunities[:30],
+        "payables": recent_open_payables(),
     })
 
 

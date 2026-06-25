@@ -480,17 +480,68 @@ class HRRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def _company_basis_total(self, basis: str, period: str) -> float:
+    def _company_basis_total(
+        self,
+        basis: str,
+        period: str,
+        seller_id: int | None = None,
+    ) -> float:
         column = "overprice" if basis == "profit" else "total_amount"
         with self.connect() as connection:
             try:
+                where = "WHERE substr(COALESCE(created_at,''), 1, 7)=?"
+                params: list[Any] = [period]
+                if seller_id:
+                    where += (
+                        " AND opportunity_id IN ("
+                        "SELECT id FROM opportunities WHERE seller_id=?"
+                        ")"
+                    )
+                    params.append(seller_id)
                 row = connection.execute(
                     f"""
                     SELECT COALESCE(SUM({column}), 0) AS total
                     FROM orders
-                    WHERE substr(COALESCE(created_at,''), 1, 7)=?
+                    {where}
                     """,
-                    (period,),
+                    params,
+                ).fetchone()
+            except sqlite3.OperationalError:
+                return self._legacy_order_items_basis_total(
+                    basis=basis,
+                    period=period,
+                    seller_id=seller_id,
+                )
+        return float(row["total"] or 0)
+
+    def _legacy_order_items_basis_total(
+        self,
+        *,
+        basis: str,
+        period: str,
+        seller_id: int | None,
+    ) -> float:
+        expression = (
+            "oi.quantity * (oi.sale_unit_price - oi.supplier_unit_price)"
+            if basis == "profit"
+            else "oi.quantity * oi.sale_unit_price"
+        )
+        seller_filter = "AND o.seller_id=?" if seller_id else ""
+        params: list[Any] = [period]
+        if seller_id:
+            params.append(seller_id)
+        with self.connect() as connection:
+            try:
+                row = connection.execute(
+                    f"""
+                    SELECT COALESCE(SUM({expression}), 0) AS total
+                    FROM orders od
+                    JOIN opportunities o ON o.id=od.opportunity_id
+                    JOIN opportunity_items oi ON oi.opportunity_id=o.id
+                    WHERE substr(COALESCE(od.created_at,''), 1, 7)=?
+                      {seller_filter}
+                    """,
+                    params,
                 ).fetchone()
             except sqlite3.OperationalError:
                 return 0.0
@@ -543,30 +594,15 @@ class HRRepository:
                     int(employee["id"]),
                     now,
                 )
-                for benefit in benefit_rules:
-                    if benefit["employee_id"] and int(benefit["employee_id"]) != int(employee["id"]):
-                        continue
-                    amount = float(benefit["fixed_amount"] or 0)
-                    if not amount and float(benefit["percentage"] or 0):
-                        basis_amount = self._company_basis_total(str(benefit["basis"]), period)
-                        amount = basis_amount * float(benefit["percentage"] or 0) / 100
-                    self._insert_item(
-                        connection,
-                        period_id,
-                        int(employee["id"]),
-                        "benefit",
-                        str(benefit["name"]),
-                        float(benefit["fixed_amount"] or 0),
-                        float(benefit["percentage"] or 0),
-                        amount,
-                        "benefit_rule",
-                        int(benefit["id"]),
-                        now,
-                    )
                 for rule in commission_rules:
                     if rule["employee_id"] and int(rule["employee_id"]) != int(employee["id"]):
                         continue
-                    basis_amount = self._company_basis_total(str(rule["basis"]), period)
+                    seller_id = self._employee_seller_id(employee, rule["calculation_scope"])
+                    basis_amount = self._company_basis_total(
+                        str(rule["basis"]),
+                        period,
+                        seller_id=seller_id,
+                    )
                     amount = basis_amount * float(rule["fixed_percentage"] or 0) / 100
                     self._insert_item(
                         connection,
@@ -579,6 +615,34 @@ class HRRepository:
                         amount,
                         "commission_rule",
                         int(rule["id"]),
+                        now,
+                    )
+                for benefit in benefit_rules:
+                    if benefit["employee_id"] and int(benefit["employee_id"]) != int(employee["id"]):
+                        continue
+                    basis_amount = self._benefit_basis_amount(
+                        connection,
+                        period_id,
+                        int(employee["id"]),
+                        employee,
+                        benefit,
+                        period,
+                    )
+                    percentage = float(benefit["percentage"] or 0)
+                    amount = float(benefit["fixed_amount"] or 0)
+                    if percentage:
+                        amount += basis_amount * percentage / 100
+                    self._insert_item(
+                        connection,
+                        period_id,
+                        int(employee["id"]),
+                        "benefit",
+                        str(benefit["name"]),
+                        basis_amount,
+                        percentage,
+                        amount,
+                        "benefit_rule",
+                        int(benefit["id"]),
                         now,
                     )
                 for adjustment in adjustment_rules:
@@ -615,6 +679,53 @@ class HRRepository:
                     )
             connection.commit()
         return period_id
+
+    def _employee_seller_id(
+        self,
+        employee: sqlite3.Row,
+        calculation_scope: str | None,
+    ) -> int | None:
+        if str(calculation_scope or "").casefold() not in {"individual", "individual_seller"}:
+            return None
+        seller_id = dict(employee).get("seller_id")
+        return int(seller_id) if seller_id else None
+
+    def _benefit_basis_amount(
+        self,
+        connection: sqlite3.Connection,
+        period_id: int,
+        employee_id: int,
+        employee: sqlite3.Row,
+        benefit: sqlite3.Row,
+        period: str,
+    ) -> float:
+        basis = str(benefit["basis"] or "fixed")
+        if basis == "fixed":
+            return float(benefit["fixed_amount"] or 0)
+        if basis == "commission":
+            row = connection.execute(
+                """
+                SELECT COALESCE(SUM(amount),0) AS total
+                FROM hr_payroll_items
+                WHERE payroll_period_id=? AND employee_id=? AND item_type='commission'
+                """,
+                (period_id, employee_id),
+            ).fetchone()
+            return float(row["total"] or 0)
+        if basis in {"sale_total", "profit"}:
+            return self._company_basis_total(
+                basis,
+                period,
+                seller_id=self._employee_seller_id(employee, benefit["calculation_scope"]),
+            )
+        return self._payroll_basis_amount(
+            connection,
+            period_id,
+            employee_id,
+            employee,
+            basis,
+            period,
+        )
 
     def _payroll_basis_amount(
         self,

@@ -164,7 +164,9 @@ Fluxo mínimo:
 7. Use **Imprimir folha CLT** para colaboradores CLT e **Demonstrativos** para representantes, PJs e comissionados.
 8. Aprove e marque como paga.
 
-A geração cria itens rastreáveis em `hr_payroll_items`. Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
+A geração cria itens rastreáveis em `hr_payroll_items`. Comissões são calculadas antes dos benefícios, para permitir benefício percentual sobre comissão. Em base individual, o cálculo usa o `seller_id` do colaborador e os itens reais dos pedidos (`orders → opportunities → opportunity_items`). Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
+
+Depois de alterar regra de comissão/benefício/desconto, gere novamente a competência. O sistema recria os itens daquela competência em rascunho para refletir as regras atuais.
 
 Ao criar usuário a partir de um colaborador-vendedor, o `seller_id` é herdado automaticamente. Esse vínculo padroniza comissões, benefícios, pedidos e relatórios sobre a mesma pessoa.
 

@@ -253,3 +253,135 @@ def test_commissioned_statement_separates_commission_benefit_and_basis(
     assert statement["benefit_amount"] == 150.0
     assert statement["net_amount"] == 400.0
     assert any(item["basis_amount"] == 2500.0 for item in statement["items"])
+
+
+def test_payroll_uses_legacy_orders_items_for_seller_commission_and_benefit(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "legacy-hr.db"
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE sellers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                username TEXT,
+                email TEXT,
+                phone TEXT,
+                commission_rate REAL DEFAULT 10,
+                active TEXT DEFAULT 'Sim'
+            )
+            """,
+        )
+        seller_id = connection.execute(
+            "INSERT INTO sellers(name,email,commission_rate,active) VALUES(?,?,?,?)",
+            ("Alan QA", "alan@example.invalid", 10, "Sim"),
+        ).lastrowid
+        other_seller_id = connection.execute(
+            "INSERT INTO sellers(name,email,commission_rate,active) VALUES(?,?,?,?)",
+            ("Outro QA", "outro@example.invalid", 10, "Sim"),
+        ).lastrowid
+        connection.execute("CREATE TABLE opportunities (id INTEGER PRIMARY KEY, seller_id INTEGER, status TEXT)")
+        connection.execute(
+            """
+            CREATE TABLE opportunity_items (
+                id INTEGER PRIMARY KEY,
+                opportunity_id INTEGER,
+                quantity REAL,
+                supplier_unit_price REAL,
+                sale_unit_price REAL,
+                seller_commission_rate REAL
+            )
+            """,
+        )
+        connection.execute(
+            """
+            CREATE TABLE orders (
+                id INTEGER PRIMARY KEY,
+                opportunity_id INTEGER,
+                order_number TEXT,
+                created_at TEXT,
+                status TEXT
+            )
+            """,
+        )
+        connection.execute(
+            "INSERT INTO opportunities(id,seller_id,status) VALUES(?,?,?)",
+            (1, seller_id, "Ganho"),
+        )
+        connection.execute(
+            "INSERT INTO opportunities(id,seller_id,status) VALUES(?,?,?)",
+            (2, other_seller_id, "Ganho"),
+        )
+        connection.execute(
+            """
+            INSERT INTO opportunity_items(opportunity_id,quantity,supplier_unit_price,sale_unit_price,seller_commission_rate)
+            VALUES(?,?,?,?,?)
+            """,
+            (1, 2, 1000, 1500, 10),
+        )
+        connection.execute(
+            """
+            INSERT INTO opportunity_items(opportunity_id,quantity,supplier_unit_price,sale_unit_price,seller_commission_rate)
+            VALUES(?,?,?,?,?)
+            """,
+            (2, 1, 1000, 3000, 10),
+        )
+        connection.execute(
+            "INSERT INTO orders(opportunity_id,order_number,created_at,status) VALUES(?,?,?,?)",
+            (1, "PED-ALAN", "2026-06-20", "Faturado"),
+        )
+        connection.execute(
+            "INSERT INTO orders(opportunity_id,order_number,created_at,status) VALUES(?,?,?,?)",
+            (2, "PED-OUTRO", "2026-06-20", "Faturado"),
+        )
+        connection.commit()
+
+    repository = HRRepository(path)
+    repository.init_schema()
+    employee_id = repository.create_employee(
+        full_name="Alan QA",
+        document="333",
+        email="alan@example.invalid",
+        phone="11444444444",
+        department_id=None,
+        job_title="Vendedor",
+        contract_type="PJ",
+        admission_date="2026-06-01",
+        status="Ativo",
+        base_salary=0,
+        user_id=None,
+        manager_user_id=None,
+        notes="",
+        is_seller=True,
+        seller_commission_rate=10,
+    )
+    repository.create_commission_rule(
+        name="Comissão individual por lucro",
+        employee_id=employee_id,
+        profile_id=None,
+        basis="profit",
+        calculation_scope="individual",
+        percentage_type="fixed",
+        fixed_percentage=10,
+        is_active=True,
+    )
+    repository.create_benefit_rule(
+        name="Benefício sobre comissão",
+        employee_id=employee_id,
+        profile_id=None,
+        benefit_type="performance",
+        basis="commission",
+        calculation_scope="individual",
+        fixed_amount=0,
+        percentage=20,
+        target_value=0,
+        is_active=True,
+    )
+
+    period_id = repository.generate_payroll_period(period="2026-06", created_by_user_id=1)
+    statement = repository.employee_payment_summary(period_id, employee_id)
+
+    assert statement["commission_amount"] == 100.0
+    assert statement["benefit_amount"] == 20.0
+    assert statement["net_amount"] == 120.0

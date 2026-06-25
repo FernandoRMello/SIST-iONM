@@ -5,7 +5,9 @@
 ```text
 app/main.py                         aplicação legada, rotas e regras ainda monolíticas
 app/features/catalog_import/       importação Excel de clientes e fornecedores
-app/templates/                      18 templates originais + wizard WhatsApp
+app/features/access_control/       perfis configuráveis, permissões especiais e atribuição a usuários
+app/features/hr/                   colaboradores, regras de comissão/benefícios e folha mensal
+app/templates/                      templates originais + WhatsApp + Perfis + RH
 app/shared/web/templates/layouts/   shell principal
 app/shared/web/templates/components macros Jinja
 app/shared/web/templates/errors/    páginas 400/403/404/500
@@ -89,6 +91,33 @@ O Embedded Signup oficial usa `POST /admin/integrations/whatsapp/embedded/start`
 As regras ficam em `whatsapp_automation_rules`. A engine aceita palavra-chave, encaminhamento humano, resposta fixa, consulta segura de faturas e consulta segura de pedidos. Faturas vêm de `receivables.client_id`; pedidos vêm de `orders.client_id` quando existir ou de `orders → opportunities.client_id` no schema legado. O limite de resposta é 5 linhas.
 
 QR/short links oficiais ficam em `whatsapp_qr_codes` e são criados por `MetaWhatsAppClient.create_qr_code()`. Não existe conexão de WhatsApp Web por QR como dispositivo de produção neste módulo.
+
+## Perfis de acesso configuráveis
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app/features/access_control/repository.py` | schema, seeds de perfis/permissões, matriz e checagem `user_has_permission()` |
+| `app/features/access_control/routes.py` | tela admin de perfis, matriz de permissões e atribuição de perfis a usuários |
+| `app/templates/access_profiles.html` | criação de perfis e edição da matriz de permissões especiais |
+| `app/templates/settings.html` | exibe e salva perfis configuráveis por usuário |
+| `tests/features/test_access_control_repository.py` | contratos do repositório de acesso |
+| `tests/web/test_access_control.py` | contratos HTTP de perfis e atribuição |
+
+O modelo novo usa `access_profiles`, `access_permissions`, `access_profile_permissions` e `user_access_profiles`. O papel legado `admin` permanece como fallback seguro para não bloquear administração durante a migração.
+
+## RH, comissões, benefícios e folha
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app/features/hr/repository.py` | schema de colaboradores, regras, folha, histórico e cálculo inicial |
+| `app/features/hr/routes.py` | rotas de colaboradores, criação de usuário, regras e folha |
+| `app/templates/hr_employees.html` | cadastro de colaboradores e vínculo com usuário |
+| `app/templates/hr_rules.html` | regras de comissão e benefícios |
+| `app/templates/hr_payroll.html` | geração, revisão, aprovação e pagamento de folha |
+| `tests/features/test_hr_repository.py` | cálculo de salário, benefício e comissão |
+| `tests/web/test_hr_module.py` | permissões e rotas do módulo RH |
+
+As permissões usadas pelo RH são `hr.view`, `hr.manage`, `hr.payroll.view`, `hr.payroll.process`, `hr.payroll.approve` e `hr.payroll.pay`. A geração de folha cria itens rastreáveis e o pagamento grava histórico.
 
 ## Importação de clientes e fornecedores
 

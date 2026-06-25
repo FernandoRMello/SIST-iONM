@@ -36,6 +36,8 @@ O handoff e os comandos de execução foram preparados para Linux/Ubuntu. A vali
 - Embedded Signup oficial: `POST /admin/integrations/whatsapp/embedded/start` e callback `/admin/integrations/whatsapp/embedded/callback`, com `state` hasheado.
 - Automações WhatsApp: regras por palavra-chave, resposta fixa, encaminhamento humano e consultas seguras de faturas/pedidos vinculados.
 - QR/short link oficial: geração via Cloud API para clientes iniciarem conversa; WhatsApp Web por QR não é usado como dispositivo produtivo.
+- Perfis configuráveis: `access_profiles`, `access_permissions`, `access_profile_permissions` e `user_access_profiles`.
+- RH: colaboradores, regras de comissão/benefícios e folha mensal com histórico de pagamento.
 
 ## Como reverificar
 

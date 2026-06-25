@@ -126,6 +126,43 @@ QR/short link oficial: use a seção **QR Code oficial** para gerar links de in�
 - O hash do banco em uso muda quando o servidor local grava dados. Capture e compare o hash dentro da janela da operação que estiver auditando; não restaure um hash histórico sobre dados ativos.
 - Antes de migração ou importação, faça cópia offline e valide contagens/valores.
 
+## Perfis de acesso e permissões especiais
+
+A tela **Administração → Perfis de acesso** permite criar perfis livres e ativar permissões por código. O modelo novo convive com o legado `role_permissions`: rotas antigas continuam respeitando `role`, e rotas novas consultam `access_profiles`, `access_permissions`, `access_profile_permissions` e `user_access_profiles`.
+
+Permissões especiais iniciais:
+
+- `access.manage`;
+- `users.manage`;
+- `whatsapp.configure`;
+- `hr.view`;
+- `hr.manage`;
+- `hr.payroll.view`;
+- `hr.payroll.process`;
+- `hr.payroll.approve`;
+- `hr.payroll.pay`;
+- `finance.sensitive.view`.
+
+O perfil legado `admin` é fallback seguro e mantém acesso completo. Ao criar usuários em **Configurações**, atribua também os perfis configuráveis na tabela de usuários.
+
+## RH, folha, comissões e benefícios
+
+O menu **RH** contém:
+
+- **Colaboradores**: cadastro, salário base, contrato e criação de usuário vinculado;
+- **Regras de RH**: comissão por lucro ou venda total e benefícios fixos/percentuais;
+- **Folha de pagamento**: geração mensal, aprovação e marcação como paga.
+
+Fluxo mínimo:
+
+1. Cadastre colaboradores ativos com salário base.
+2. Crie regras de comissão/benefício.
+3. Gere a competência em `AAAA-MM`.
+4. Revise os itens da folha.
+5. Aprove e marque como paga.
+
+A geração cria itens rastreáveis em `hr_payroll_items`. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
+
 ## Importação por Excel
 
 Nas telas **Clientes** e **Fornecedores**, baixe primeiro o modelo oficial e envie somente arquivos `.xlsx`. Nome e CPF/CNPJ são obrigatórios; o documento identifica se o registro deve ser criado ou atualizado.

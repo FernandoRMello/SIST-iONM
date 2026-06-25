@@ -1,6 +1,7 @@
 from pathlib import Path
 
 EXPECTED_TEMPLATES = {
+    "access_profiles.html",
     "base.html",
     "bi_gerencial.html",
     "chat.html",
@@ -9,6 +10,9 @@ EXPECTED_TEMPLATES = {
     "dashboard.html",
     "feed.html",
     "finance.html",
+    "hr_employees.html",
+    "hr_payroll.html",
+    "hr_rules.html",
     "login.html",
     "opportunities.html",
     "opportunity_card.html",

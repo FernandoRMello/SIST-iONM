@@ -440,6 +440,67 @@ class WhatsAppSettingsRepository:
             connection.commit()
             return int(cursor.lastrowid)
 
+    def open_receivables_for_client(self, client_id: int) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            try:
+                rows = connection.execute(
+                    """
+                    SELECT description, amount, due_date, status
+                    FROM receivables
+                    WHERE client_id=? AND COALESCE(status,'') NOT IN ('Recebido','Pago')
+                    ORDER BY due_date IS NULL, due_date ASC, id DESC
+                    LIMIT 5
+                    """,
+                    (client_id,),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                return []
+        return [dict(row) for row in rows]
+
+    def recent_orders_for_client(self, client_id: int) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            try:
+                order_columns = {
+                    row["name"] for row in connection.execute("PRAGMA table_info(orders)")
+                }
+                if "client_id" in order_columns:
+                    amount_column = (
+                        "total_amount" if "total_amount" in order_columns else "0"
+                    )
+                    rows = connection.execute(
+                        f"""
+                        SELECT order_number, {amount_column} AS amount, status, created_at
+                        FROM orders
+                        WHERE client_id=?
+                        ORDER BY created_at DESC, id DESC
+                        LIMIT 5
+                        """,
+                        (client_id,),
+                    ).fetchall()
+                else:
+                    rows = connection.execute(
+                        """
+                        SELECT
+                            orders.order_number,
+                            COALESCE(SUM(receivables.amount), 0) AS amount,
+                            orders.status,
+                            orders.created_at
+                        FROM orders
+                        JOIN opportunities
+                            ON opportunities.id = orders.opportunity_id
+                        LEFT JOIN receivables
+                            ON receivables.order_id = orders.id
+                        WHERE opportunities.client_id=?
+                        GROUP BY orders.id
+                        ORDER BY orders.created_at DESC, orders.id DESC
+                        LIMIT 5
+                        """,
+                        (client_id,),
+                    ).fetchall()
+            except sqlite3.OperationalError:
+                return []
+        return [dict(row) for row in rows]
+
     def find_message(self, provider_message_id: str) -> dict[str, Any] | None:
         self.init_schema()
         with self.connect() as connection:

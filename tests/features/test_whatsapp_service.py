@@ -148,3 +148,85 @@ def test_human_keyword_routes_to_attendant(tmp_path: Path) -> None:
     reply = resolve_automation_reply(repository, contact, "falar com atendente")
 
     assert "encaminhar para um atendente" in reply
+
+
+def test_linked_client_receivables_are_returned_without_leaking_other_clients(
+    tmp_path: Path,
+) -> None:
+    repository = _prepare_database(tmp_path / "whatsapp.db")
+    contact = repository.upsert_contact("5511999990002", "Cliente")
+    with sqlite3.connect(repository.database_path) as connection:
+        connection.execute(
+            "CREATE TABLE receivables (id INTEGER PRIMARY KEY, client_id INTEGER, description TEXT, amount REAL, due_date TEXT, status TEXT)",
+        )
+        connection.execute(
+            "UPDATE whatsapp_contacts SET client_id=10 WHERE id=?",
+            (contact["id"],),
+        )
+        connection.execute(
+            "INSERT INTO receivables(client_id,description,amount,due_date,status) VALUES(?,?,?,?,?)",
+            (10, "FAT-QA-0001", 1234.56, "2026-07-10", "Aberto"),
+        )
+        connection.execute(
+            "INSERT INTO receivables(client_id,description,amount,due_date,status) VALUES(?,?,?,?,?)",
+            (20, "FAT-OUTRO-CLIENTE", 9999.99, "2026-07-11", "Aberto"),
+        )
+        connection.commit()
+    contact = repository.upsert_contact("5511999990002", "Cliente")
+    repository.create_automation_rule(
+        name="Financeiro",
+        trigger_type="keyword",
+        trigger_value="fatura",
+        response_type="safe_finance_lookup",
+        response_text="",
+        target_department_id=None,
+        is_active=True,
+        created_by_user_id=1,
+    )
+
+    reply = resolve_automation_reply(repository, contact, "minha fatura")
+
+    assert "FAT-QA-0001" in reply
+    assert "R$ 1.234,56" in reply
+    assert "FAT-OUTRO-CLIENTE" not in reply
+
+
+def test_linked_client_orders_are_returned_without_leaking_other_clients(
+    tmp_path: Path,
+) -> None:
+    repository = _prepare_database(tmp_path / "whatsapp.db")
+    contact = repository.upsert_contact("5511999990003", "Cliente")
+    with sqlite3.connect(repository.database_path) as connection:
+        connection.execute(
+            "CREATE TABLE orders (id INTEGER PRIMARY KEY, client_id INTEGER, order_number TEXT, total_amount REAL, status TEXT, created_at TEXT)",
+        )
+        connection.execute(
+            "UPDATE whatsapp_contacts SET client_id=10 WHERE id=?",
+            (contact["id"],),
+        )
+        connection.execute(
+            "INSERT INTO orders(client_id,order_number,total_amount,status,created_at) VALUES(?,?,?,?,?)",
+            (10, "PED-QA-0001", 456.78, "Aberto", "2026-07-12"),
+        )
+        connection.execute(
+            "INSERT INTO orders(client_id,order_number,total_amount,status,created_at) VALUES(?,?,?,?,?)",
+            (20, "PED-OUTRO-CLIENTE", 999.99, "Aberto", "2026-07-13"),
+        )
+        connection.commit()
+    contact = repository.upsert_contact("5511999990003", "Cliente")
+    repository.create_automation_rule(
+        name="Pedidos",
+        trigger_type="keyword",
+        trigger_value="pedido",
+        response_type="safe_order_lookup",
+        response_text="",
+        target_department_id=None,
+        is_active=True,
+        created_by_user_id=1,
+    )
+
+    reply = resolve_automation_reply(repository, contact, "meu pedido")
+
+    assert "PED-QA-0001" in reply
+    assert "R$ 456,78" in reply
+    assert "PED-OUTRO-CLIENTE" not in reply

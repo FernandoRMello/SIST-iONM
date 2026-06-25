@@ -88,6 +88,34 @@ def _content_matches_keywords(content: str, trigger_value: str) -> bool:
     return any(keyword in normalized_content for keyword in keywords)
 
 
+def _format_brl(value: Any) -> str:
+    number = float(value or 0)
+    formatted = f"{number:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {formatted}"
+
+
+def _format_receivables_reply(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "Não encontrei faturas em aberto vinculadas ao seu cadastro."
+    lines = [f"Encontrei {len(rows)} lançamento(s) em aberto:"]
+    for row in rows:
+        description = row.get("description") or "Fatura"
+        due_date = row.get("due_date") or "sem vencimento"
+        lines.append(f"- {description} · {_format_brl(row.get('amount'))} · vence {due_date}")
+    return "\n".join(lines)
+
+
+def _format_orders_reply(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "Não encontrei pedidos recentes vinculados ao seu cadastro."
+    lines = [f"Encontrei {len(rows)} pedido(s) recente(s):"]
+    for row in rows:
+        order_number = row.get("order_number") or "Pedido"
+        status = row.get("status") or "sem status"
+        lines.append(f"- {order_number} · {_format_brl(row.get('amount'))} · {status}")
+    return "\n".join(lines)
+
+
 def resolve_automation_reply(
     repository: WhatsAppSettingsRepository,
     contact: dict[str, Any],
@@ -109,8 +137,16 @@ def resolve_automation_reply(
         if response_type == "human_handoff":
             return HUMAN_HANDOFF_REPLY
         if response_type in {"safe_finance_lookup", "safe_order_lookup"}:
-            if not contact.get("client_id"):
+            client_id = contact.get("client_id")
+            if not client_id:
                 return SAFE_CONFIRMATION_REPLY
+            if response_type == "safe_finance_lookup":
+                return _format_receivables_reply(
+                    repository.open_receivables_for_client(int(client_id)),
+                )
+            return _format_orders_reply(
+                repository.recent_orders_for_client(int(client_id)),
+            )
         if response_type == "static_reply" and rule.get("response_text"):
             return str(rule["response_text"])
         if rule.get("response_text"):

@@ -281,3 +281,31 @@ def test_embedded_signup_callback_rejects_unknown_state(admin_client: TestClient
     )
 
     assert response.status_code == 403
+
+
+def test_admin_can_create_whatsapp_automation_rule(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/automation-rules",
+        data={
+            "name": "Financeiro",
+            "trigger_type": "keyword",
+            "trigger_value": "fatura,boleto",
+            "response_type": "safe_finance_lookup",
+            "response_text": "Vou consultar suas faturas.",
+            "target_department_id": "2",
+            "is_active": "Sim",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    page = admin_client.get("/admin/integrations/whatsapp")
+    assert "Financeiro" in page.text
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        count = connection.execute(
+            "SELECT COUNT(*) FROM whatsapp_automation_rules",
+        ).fetchone()[0]
+    assert count == 1

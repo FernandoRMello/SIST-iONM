@@ -122,6 +122,23 @@ class WhatsAppSettingsRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_automation_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    trigger_type TEXT,
+                    trigger_value TEXT,
+                    response_type TEXT,
+                    response_text TEXT,
+                    target_department_id INTEGER,
+                    is_active TEXT DEFAULT 'Sim',
+                    created_by_user_id INTEGER,
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
             now = datetime.now().isoformat(timespec="seconds")
             for name in DEFAULT_DEPARTMENTS:
                 connection.execute(
@@ -368,6 +385,60 @@ class WhatsAppSettingsRepository:
             )
             connection.commit()
         return cursor.rowcount > 0
+
+    def automation_rules(self) -> list[dict[str, Any]]:
+        self.init_schema()
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT rule.*, department.name AS target_department_name
+                FROM whatsapp_automation_rules rule
+                LEFT JOIN whatsapp_departments department
+                    ON department.id = rule.target_department_id
+                ORDER BY rule.id DESC
+                """,
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def create_automation_rule(
+        self,
+        *,
+        name: str,
+        trigger_type: str,
+        trigger_value: str,
+        response_type: str,
+        response_text: str,
+        target_department_id: int | None,
+        is_active: bool,
+        created_by_user_id: int,
+    ) -> int:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO whatsapp_automation_rules(
+                    name, trigger_type, trigger_value, response_type,
+                    response_text, target_department_id, is_active,
+                    created_by_user_id, created_at, updated_at
+                )
+                VALUES(?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    name.strip(),
+                    trigger_type.strip() or "keyword",
+                    trigger_value.strip(),
+                    response_type.strip() or "human_handoff",
+                    response_text.strip(),
+                    target_department_id,
+                    "Sim" if is_active else "Não",
+                    created_by_user_id,
+                    now,
+                    now,
+                ),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
 
     def find_message(self, provider_message_id: str) -> dict[str, Any] | None:
         self.init_schema()

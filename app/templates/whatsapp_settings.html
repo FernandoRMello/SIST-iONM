@@ -70,6 +70,68 @@
 
   <section class="ui-card ui-admin-section">
     <header class="ui-admin-section__header">
+      <div>
+        <p class="ui-eyebrow">Automações</p>
+        <h2>Regras de triagem e respostas</h2>
+        <p>Use palavras-chave para encaminhar contatos, responder com segurança ou consultar dados apenas quando o cliente estiver vinculado.</p>
+      </div>
+    </header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/admin/integrations/whatsapp/automation-rules">
+      <label class="ui-field" for="wa-rule-name"><span class="ui-field__label">Nome da regra</span><input class="ui-field__control" id="wa-rule-name" name="name" placeholder="Financeiro" autocomplete="off" required></label>
+      <label class="ui-field" for="wa-rule-trigger-type">
+        <span class="ui-field__label">Tipo de gatilho</span>
+        <select class="ui-field__control" id="wa-rule-trigger-type" name="trigger_type">
+          <option value="keyword">Palavra-chave</option>
+        </select>
+      </label>
+      <label class="ui-field" for="wa-rule-trigger-value"><span class="ui-field__label">Palavras-chave</span><input class="ui-field__control" id="wa-rule-trigger-value" name="trigger_value" placeholder="fatura,boleto,pedido" autocomplete="off" required></label>
+      <label class="ui-field" for="wa-rule-response-type">
+        <span class="ui-field__label">Ação</span>
+        <select class="ui-field__control" id="wa-rule-response-type" name="response_type">
+          <option value="human_handoff">Encaminhar para atendente</option>
+          <option value="safe_finance_lookup">Consultar faturas com segurança</option>
+          <option value="safe_order_lookup">Consultar pedidos com segurança</option>
+          <option value="static_reply">Resposta fixa</option>
+        </select>
+      </label>
+      <label class="ui-field" for="wa-rule-department">
+        <span class="ui-field__label">Setor de destino</span>
+        <select class="ui-field__control" id="wa-rule-department" name="target_department_id">
+          <option value="">Sem setor específico</option>
+          {% for department in departments %}
+            <option value="{{ department.id }}">{{ department.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="ui-field" for="wa-rule-response-text"><span class="ui-field__label">Resposta fixa/opcional</span><input class="ui-field__control" id="wa-rule-response-text" name="response_text" placeholder="Mensagem automática opcional" autocomplete="off"></label>
+      <label>
+        <input type="checkbox" name="is_active" value="Sim" checked>
+        Regra ativa
+      </label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Criar regra</button></div>
+    </form>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Regra</th><th>Gatilho</th><th>Ação</th><th>Setor</th><th>Ativa</th></tr></thead>
+        <tbody>
+        {% for rule in automation_rules %}
+          <tr>
+            <td>{{ rule.name }}</td>
+            <td>{{ rule.trigger_value }}</td>
+            <td>{{ rule.response_type }}</td>
+            <td>{{ rule.target_department_name or '-' }}</td>
+            <td>{{ rule.is_active }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5">Nenhuma regra criada ainda.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
       <div><p class="ui-eyebrow">Roteamento</p><h2>Setores iniciais</h2></div>
     </header>
     <div class="ui-table-wrapper">

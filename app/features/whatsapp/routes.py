@@ -113,6 +113,7 @@ def create_whatsapp_router(
                 "settings": settings,
                 "masked": masked,
                 "departments": repo.departments(),
+                "automation_rules": repo.automation_rules(),
                 "whatsapp_users": repo.active_users(),
                 "generated_verify_token": request.session.pop(
                     "whatsapp_generated_verify_token",
@@ -205,6 +206,33 @@ def create_whatsapp_router(
         repo.complete_embedded_signup_session(
             state_token_hash=state_hash,
             provider_payload_json=json.dumps(provider_payload),
+        )
+        return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
+
+    @router.post("/admin/integrations/whatsapp/automation-rules")
+    async def whatsapp_automation_rules_save(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        user = current_user(request) or {}
+        form = await request.form()
+        name = str(form.get("name") or "").strip()
+        trigger_value = str(form.get("trigger_value") or "").strip()
+        if not name or not trigger_value:
+            return PlainTextResponse("Nome e gatilho são obrigatórios", status_code=400)
+        raw_department_id = str(form.get("target_department_id") or "").strip()
+        target_department_id = (
+            int(raw_department_id) if raw_department_id.isdigit() else None
+        )
+        repository().create_automation_rule(
+            name=name,
+            trigger_type=str(form.get("trigger_type") or "keyword"),
+            trigger_value=trigger_value,
+            response_type=str(form.get("response_type") or "human_handoff"),
+            response_text=str(form.get("response_text") or ""),
+            target_department_id=target_department_id,
+            is_active=str(form.get("is_active") or "") == "Sim",
+            created_by_user_id=int(user.get("id") or 0),
         )
         return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
 

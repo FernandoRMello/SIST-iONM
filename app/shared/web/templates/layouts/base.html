@@ -105,6 +105,11 @@
           <h1>{{ self.title() }}</h1>
         </div>
       </div>
+      <label class="ui-global-search">
+        <span class="ui-visually-hidden">Buscar no sistema</span>
+        {{ icon('search', 17) }}
+        <input type="search" placeholder="Buscar no sistema" autocomplete="off" data-global-search disabled>
+      </label>
       <div class="ui-topbar__actions">
         <a class="ui-button ui-button--secondary ui-quick-action" href="/cadastros/clients">{{ icon('plus', 16) }} Novo cliente</a>
         <a class="ui-button ui-button--primary ui-quick-action" href="/opportunities">{{ icon('plus', 16) }} Nova R.O.</a>

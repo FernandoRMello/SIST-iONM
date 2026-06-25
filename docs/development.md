@@ -64,6 +64,20 @@ Os links do menu lateral atualizam apenas o conteúdo central. Para validar manu
 
 PNG, JPG/JPEG, GIF e WebP são imagens inline. Todos os anexos mantêm o limite de 10 MiB. Se a navegação dinâmica falhar, o sistema recarrega a página normalmente.
 
+## Visual minimalista e topbar
+
+O shell usa uma fundação visual minimalista:
+
+- fundo neutro `#f7f8fa`;
+- cards sem sombra por padrão, com bordas sutis;
+- campos e botões compactos, preservando foco acessível;
+- menu lateral mantido, porém com cor sólida e menos ruído;
+- topbar compacta com atalhos, sino, perfil e busca global preparada.
+
+A busca da topbar (`data-global-search`) ainda é apenas reserva de UX. Não implemente comportamento de busca global sem plano específico, pois ela precisará consultar clientes, pedidos, oportunidades, usuários e documentos com controle de permissão.
+
+Ao adicionar novos formulários, prefira selects/vínculos quando houver cadastro relacionado. Use campo livre apenas para descrição, observação, documento externo ou quando não houver entidade cadastrável.
+
 ## Verificação de colaboração
 
 1. Abra uma conversa privada, minimize o painel e envie mensagem pelo outro usuário: sino e avatar do remetente devem aumentar.
@@ -164,11 +178,11 @@ Fluxo mínimo:
 7. Use **Imprimir folha CLT** para colaboradores CLT e **Demonstrativos** para representantes, PJs e comissionados.
 8. Aprove e marque como paga.
 
-A geração cria itens rastreáveis em `hr_payroll_items`. Comissões são calculadas antes dos benefícios, para permitir benefício percentual sobre comissão. Em base individual, o cálculo usa o `seller_id` do colaborador e os itens reais dos pedidos (`orders → opportunities → opportunity_items`). Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
-
-Depois de alterar regra de comissão/benefício/desconto, gere novamente a competência. O sistema recria os itens daquela competência em rascunho para refletir as regras atuais.
+A geração cria itens rastreáveis em `hr_payroll_items`. Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
 
 Ao criar usuário a partir de um colaborador-vendedor, o `seller_id` é herdado automaticamente. Esse vínculo padroniza comissões, benefícios, pedidos e relatórios sobre a mesma pessoa.
+
+O cadastro de colaborador usa lista controlada para cargo e tipo de contrato. Se surgir um cargo recorrente novo, inclua-o em `JOB_TITLES` no módulo de rotas de RH ou evolua para cadastro próprio de cargos/departamentos em uma etapa separada.
 
 ## Importação por Excel
 

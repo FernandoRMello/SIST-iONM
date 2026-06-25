@@ -58,6 +58,14 @@ tests/performance/                   budgets de consulta, paginação e cache
 7. Rode o teste específico, depois `tests/web`, `tests/performance` e `tests/characterization`.
 8. Confira o SHA-256 do banco-fonte antes de entregar.
 
+## Campos e relações padronizadas
+
+- A topbar contém uma busca global visualmente preparada (`data-global-search`), ainda sem engine funcional. Ela serve como reserva de UX para uma busca futura sem alterar o fluxo atual.
+- Em RH, `job_title` é select com cargos comuns para reduzir variação textual. O campo continua postando `job_title` para preservar compatibilidade.
+- Em RH, `contract_type` é select baseado em tipos aceitos pelo módulo de folha e demonstrativos.
+- Em Financeiro → Custos, o favorecido agora pode vir de `suppliers` ou `sellers`. O schema atual ainda grava o nome final em `costs.vendor`, evitando migração nesta etapa; o formulário mantém `vendor` como fallback manual.
+- Campos livres continuam permitidos apenas quando não há cadastro relacionado ou quando o texto realmente é descritivo, como observações, documento e descrição.
+
 ## Navegação persistente do shell
 
 `shell-navigation.js` intercepta exclusivamente links `data-nav-item` do menu. Ele mantém menu, topbar e chat montados, troca `#main-content`, sincroniza título, breadcrumb, histórico e assets específicos e emite `sistionm:content-updated`.
@@ -123,8 +131,6 @@ O modelo novo usa `access_profiles`, `access_permissions`, `access_profile_permi
 As permissões usadas pelo RH são `hr.view`, `hr.manage`, `hr.payroll.view`, `hr.payroll.process`, `hr.payroll.approve` e `hr.payroll.pay`. A geração de folha cria itens rastreáveis e o pagamento grava histórico.
 
 Quando um colaborador é marcado como vendedor/representante, `HRRepository.create_employee()` sincroniza o registro na tabela `sellers` e grava `hr_employees.seller_id`. Ao criar o usuário a partir do colaborador, o mesmo `seller_id` é aplicado em `users.seller_id`. Essa é a regra padrão: não duplicar pessoa em RH e Cadastros; o colaborador é o cadastro mestre, e o vendedor é a projeção comercial necessária para pedidos, comissões e relatórios.
-
-Comissões e benefícios da folha usam os pedidos reais do sistema. Quando não existir resumo em `orders.total_amount/overprice`, o repositório calcula a base por `orders → opportunities → opportunity_items`. Benefícios com base `commission` são calculados depois das comissões.
 
 ## Importação de clientes e fornecedores
 

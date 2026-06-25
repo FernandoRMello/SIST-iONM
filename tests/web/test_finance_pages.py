@@ -108,3 +108,47 @@ def test_financial_forms_preserve_backend_field_names() -> None:
         "notes",
     ):
         assert f'name="{field_name}"' in reports
+
+
+def test_finance_cost_form_links_vendor_to_existing_catalogs(
+    admin_client: TestClient,
+) -> None:
+    response = admin_client.get("/finance?segment=costs")
+
+    assert response.status_code == 200
+    assert 'id="cost-party-type"' in response.text
+    assert 'name="party_type"' in response.text
+    assert 'id="cost-supplier-id"' in response.text
+    assert 'name="supplier_id"' in response.text
+    assert 'id="cost-seller-id"' in response.text
+    assert 'name="seller_id"' in response.text
+
+
+def test_cost_form_persists_supplier_or_seller_link(
+    admin_client: TestClient,
+    legacy_test_state,
+) -> None:
+    response = admin_client.post(
+        "/finance/costs/add",
+        data={
+            "order_id": "",
+            "description": "Custo vínculo QA",
+            "category": "Serviços",
+            "cost_center": "Operacional",
+            "amount": "100",
+            "date": "2026-06-25",
+            "party_type": "supplier",
+            "supplier_id": str(legacy_test_state.ids["supplier_id"]),
+            "seller_id": "",
+            "vendor": "",
+            "document": "DOC-QA",
+            "billable": "Não",
+            "notes": "",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    page = admin_client.get("/finance?segment=costs")
+    assert "Custo vínculo QA" in page.text
+    assert "Fornecedor QA Render" in page.text

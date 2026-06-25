@@ -52,6 +52,19 @@ def test_shared_css_owns_shell_components_previously_in_legacy_css() -> None:
         assert selector in combined
 
 
+def test_minimalist_design_tokens_reduce_visual_weight() -> None:
+    tokens = (SHARED_CSS / "tokens.css").read_text(encoding="utf-8")
+    components = (SHARED_CSS / "components.css").read_text(encoding="utf-8")
+    layout = (SHARED_CSS / "layout.css").read_text(encoding="utf-8")
+
+    assert "--color-canvas: #f7f8fa;" in tokens
+    assert "--color-sidebar:" in tokens
+    assert "--shadow-sm: 0 1px 2px" in tokens
+    assert "min-height: 40px;" in components
+    assert "background: var(--color-sidebar);" in layout
+    assert "background: linear-gradient(180deg, var(--color-navy-900)" not in layout
+
+
 def test_floating_chat_keeps_the_message_composer_inside_the_panel() -> None:
     source = (SHARED_CSS / "layout.css").read_text(encoding="utf-8")
     conversation_rule = re.search(

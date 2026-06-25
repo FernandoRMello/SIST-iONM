@@ -71,6 +71,19 @@ def test_authenticated_shell_marks_current_route_and_keeps_quick_actions(
     assert 'href="/cadastros/clients"' in response.text
 
 
+def test_topbar_prepares_global_search_without_functional_dependency(
+    admin_client: TestClient,
+) -> None:
+    response = admin_client.get("/")
+
+    assert response.status_code == 200
+    assert 'class="ui-global-search"' in response.text
+    assert 'data-global-search' in response.text
+    assert 'placeholder="Buscar no sistema"' in response.text
+    assert 'data-chat-action="notifications"' in response.text
+    assert 'data-action="toggle-profile"' in response.text
+
+
 def test_legacy_base_is_a_compatibility_extension() -> None:
     source = COMPATIBILITY_LAYOUT.read_text(encoding="utf-8")
 

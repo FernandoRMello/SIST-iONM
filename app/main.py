@@ -2334,6 +2334,8 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
         """, (pager["page_size"], offset))
 
     orders_list = q("SELECT * FROM orders ORDER BY id DESC") if segment == "costs" else []
+    suppliers_list = q("SELECT id,name FROM suppliers ORDER BY name") if segment == "costs" else []
+    sellers_list = q("SELECT id,name FROM sellers WHERE active='Sim' ORDER BY name") if segment == "costs" else []
 
     return render(request, "finance.html", {
         "segment": segment,
@@ -2341,6 +2343,8 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
         "total": summary["amount"],
         "pager": pager,
         "orders": orders_list,
+        "suppliers": suppliers_list,
+        "sellers": sellers_list,
         "cost_categories": COST_CATEGORIES,
         "cost_centers": COST_CENTERS,
     })
@@ -2354,13 +2358,23 @@ async def add_cost(request: Request):
         return PlainTextResponse("Sem permissão", status_code=403)
 
     form = await request.form()
+    party_type = str(form.get("party_type") or "").strip()
+    supplier_id = str(form.get("supplier_id") or "").strip()
+    seller_id = str(form.get("seller_id") or "").strip()
+    vendor = str(form.get("vendor") or "").strip()
+    if party_type == "supplier" and supplier_id.isdigit():
+        row = q("SELECT name FROM suppliers WHERE id=?", (int(supplier_id),), one=True)
+        vendor = row["name"] if row else vendor
+    elif party_type == "seller" and seller_id.isdigit():
+        row = q("SELECT name FROM sellers WHERE id=?", (int(seller_id),), one=True)
+        vendor = row["name"] if row else vendor
     exec_sql("""
         INSERT INTO costs(order_id,description,category,cost_center,amount,date,vendor,document,billable,notes)
         VALUES(?,?,?,?,?,?,?,?,?,?)
     """, (
         form.get("order_id") or None, form.get("description"), form.get("category"),
         form.get("cost_center"), num(form.get("amount")), form.get("date") or today(),
-        form.get("vendor"), form.get("document"), form.get("billable") or "Não",
+        vendor, form.get("document"), form.get("billable") or "Não",
         form.get("notes")
     ))
     return RedirectResponse("/finance?segment=costs", status_code=303)

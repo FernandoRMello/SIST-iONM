@@ -94,7 +94,8 @@ def test_token_contract_matches_approved_foundation() -> None:
     for token in (
         "--color-navy-950: #081426",
         "--color-teal-600: #0f8b8d",
-        "--color-canvas: #f4f7fb",
+        "--color-canvas: #f7f8fa",
+        "--color-sidebar: #0f1f35",
         "--color-text: #172033",
         "--space-1: 4px",
         "--space-6: 24px",

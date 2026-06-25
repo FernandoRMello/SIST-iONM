@@ -8,6 +8,18 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from app.features.access_control.repository import AccessControlRepository
 from app.features.hr.repository import HRRepository
 
+JOB_TITLES = [
+    "Vendedor",
+    "Representante",
+    "Analista",
+    "Financeiro",
+    "RH",
+    "TI",
+    "Gestor",
+    "Diretoria",
+]
+CONTRACT_TYPES = ["CLT", "PJ", "Representante", "Estágio", "Autônomo", "Sócio", "Outro"]
+
 
 def _to_float(value: object) -> float:
     text = str(value or "0").strip()
@@ -68,6 +80,8 @@ def create_hr_router(
             {
                 "employees": repo.employees(),
                 "profiles": access_repository().profiles(),
+                "job_titles": JOB_TITLES,
+                "contract_types": CONTRACT_TYPES,
             },
         )
 
@@ -224,13 +238,17 @@ def create_hr_router(
         return RedirectResponse("/hr/rules", status_code=303)
 
     @router.get("/hr/payroll")
-    def payroll_page(request: Request):
+    def payroll_page(request: Request, period: str = ""):
         denied = require_permission(request, "hr.payroll.view")
         if denied:
             return denied
         repo = hr_repository()
         periods = repo.payroll_periods()
-        current_period = periods[0] if periods else None
+        current_period = None
+        if period:
+            current_period = next((row for row in periods if row.get("period") == period), None)
+        if current_period is None:
+            current_period = periods[0] if periods else None
         items = repo.payroll_items(int(current_period["id"])) if current_period else []
         return render(
             request,
@@ -297,11 +315,12 @@ def create_hr_router(
             return denied
         form = await request.form()
         user = current_user(request) or {}
+        period = str(form.get("period") or "")
         hr_repository().generate_payroll_period(
-            period=str(form.get("period") or ""),
+            period=period,
             created_by_user_id=int(user.get("id") or 0),
         )
-        return RedirectResponse("/hr/payroll", status_code=303)
+        return RedirectResponse(f"/hr/payroll?period={period}", status_code=303)
 
     @router.post("/hr/payroll/{period_id}/approve")
     def payroll_approve(request: Request, period_id: int):

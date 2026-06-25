@@ -17,6 +17,20 @@ def test_hr_pages_require_permission(
     assert "Colaboradores" in allowed.text
 
 
+def test_hr_employee_form_uses_list_fields_for_known_domains(
+    admin_client: TestClient,
+) -> None:
+    response = admin_client.get("/hr/employees")
+
+    assert response.status_code == 200
+    assert 'id="employee-job"' in response.text
+    assert 'name="job_title"' in response.text
+    assert '<select class="ui-field__control" id="employee-job" name="job_title"' in response.text
+    assert "Vendedor" in response.text
+    assert "Representante" in response.text
+    assert '<select class="ui-field__control" id="employee-contract" name="contract_type"' in response.text
+
+
 def test_admin_can_create_employee_and_link_user(
     admin_client: TestClient,
     legacy_test_state: LegacyTestState,
@@ -179,7 +193,7 @@ def test_admin_can_create_hr_rules_and_generate_payroll(
     assert commission.status_code == 303
     assert benefit.status_code == 303
     assert payroll.status_code == 303
-    page = admin_client.get("/hr/payroll")
+    page = admin_client.get("/hr/payroll?period=2026-06")
     assert "2026-06" in page.text
     assert "Folha Web QA" in page.text
 

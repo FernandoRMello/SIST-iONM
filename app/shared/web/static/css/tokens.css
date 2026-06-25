@@ -14,11 +14,12 @@
   --color-teal-600: #0f8b8d;
   --color-teal-500: #1aa5a8;
   --color-teal-100: #d7f1f1;
-  --color-canvas: #f4f7fb;
+  --color-canvas: #f7f8fa;
   --color-surface: #ffffff;
-  --color-surface-subtle: #ebf1f7;
-  --color-border: #ced8e5;
-  --color-border-strong: #99abbe;
+  --color-surface-subtle: #f1f4f7;
+  --color-sidebar: #0f1f35;
+  --color-border: #d7dde6;
+  --color-border-strong: #aeb9c7;
   --color-text: #172033;
   --color-text-muted: #51627a;
   --color-text-inverse: #f7fbff;
@@ -62,8 +63,8 @@
   --line-height-body: 1.5;
   --letter-spacing-heading: -0.02em;
 
-  --shadow-sm: 0 8px 20px rgb(8 20 38 / 0.06);
-  --shadow-md: 0 14px 30px rgb(8 20 38 / 0.10);
+  --shadow-sm: 0 1px 2px rgb(8 20 38 / 0.05);
+  --shadow-md: 0 8px 18px rgb(8 20 38 / 0.10);
   --shadow-focus: 0 0 0 3px rgb(15 139 141 / 0.28);
   --focus-ring: var(--shadow-focus);
 
@@ -74,8 +75,8 @@
   --sidebar-width-collapsed: 72px;
   --sidebar-width-expanded: 280px;
   --drawer-width: 320px;
-  --topbar-height: 64px;
-  --content-max-width: 1280px;
+  --topbar-height: 58px;
+  --content-max-width: 1360px;
 
   --bp-sm: 480px;
   --bp-md: 768px;

@@ -31,24 +31,18 @@
   </section>
 
   <section class="ui-card" aria-labelledby="bi-payables">
-    <header class="ui-section-header"><div><p class="ui-eyebrow">Financeiro</p><h2 id="bi-payables">Compromissos a pagar</h2><p>Principais obrigações em aberto, vencidas ou agendadas.</p></div></header>
+    <header class="ui-section-header"><div><p class="ui-eyebrow">Financeiro</p><h2 id="bi-payables">Compromissos a pagar</h2><p>Obrigações em aberto, vencidas ou agendadas.</p></div></header>
     {% if payables %}
-      <div class="ui-table-wrapper">
-        <table class="ui-table">
-          <thead><tr><th>Vencimento</th><th>Descrição</th><th>Favorecido</th><th>Status</th><th>Valor</th></tr></thead>
-          <tbody>
-          {% for payable in payables %}
-            <tr>
-              <td>{{ payable.due_date or '-' }}</td>
-              <td>{{ payable.description }}</td>
-              <td>{{ payable.seller_name or payable.supplier_name or '-' }}</td>
-              <td>{{ status_badge(payable.status, 'neutral') }}</td>
-              <td class="money-sensitive">{{ money(payable.amount) }}</td>
-            </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Vencimento</th><th>Descrição</th><th>Favorecido</th><th>Status</th><th>Valor</th></tr></thead>
+        <tbody>
+        {% for payable in payables %}
+          <tr><td>{{ payable.due_date or '-' }}</td><td>{{ payable.description }}</td><td>{{ payable.seller_name or payable.supplier_name or '-' }}</td><td>{{ status_badge(payable.status, 'neutral') }}</td><td class="money-sensitive">{{ money(payable.amount) }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
       {{ empty_state('Sem compromissos a pagar', 'As contas em aberto aparecerão nesta lista.', 'finance') }}
     {% endif %}

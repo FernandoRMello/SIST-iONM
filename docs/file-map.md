@@ -76,13 +76,19 @@ No chat, `attachment_is_image` é calculado no backend. PNG, JPG/JPEG, WebP e GI
 | Arquivo | Responsabilidade |
 |---|---|
 | `app/features/whatsapp/security.py` | máscara de segredos, hash do verify token, criptografia local e validação `X-Hub-Signature-256` |
-| `app/features/whatsapp/repository.py` | tabelas de configuração, contatos, conversas, mensagens, setores e triagem |
-| `app/features/whatsapp/service.py` | normalização de payloads Meta, idempotência, triagem inicial e espelhamento no chat |
-| `app/features/whatsapp/client.py` | envio de texto pela Cloud API oficial da Meta |
-| `app/features/whatsapp/routes.py` | wizard admin, teste de conexão e webhook público |
+| `app/features/whatsapp/repository.py` | tabelas de configuração, contatos, conversas, mensagens, setores, triagem, Embedded Signup, regras, QR codes e consultas vinculadas |
+| `app/features/whatsapp/service.py` | normalização de payloads Meta, idempotência, triagem inicial, automações seguras e espelhamento no chat |
+| `app/features/whatsapp/client.py` | envio de texto e geração de QR/short link pela Cloud API oficial da Meta |
+| `app/features/whatsapp/routes.py` | wizard admin, Embedded Signup, regras, QR codes, teste de conexão e webhook público |
 | `app/templates/whatsapp_settings.html` | wizard `Administração → WhatsApp Business` |
 
 Somente `admin` pode acessar e alterar a integração. `access_token`, `app_secret` e `verify_token` não são renderizados em texto claro após o salvamento. O POST do webhook valida assinatura HMAC antes de processar mensagens. Mensagens recebidas são deduplicadas por `provider_message_id` e espelhadas em uma sala interna `WhatsApp · contato`.
+
+O Embedded Signup oficial usa `POST /admin/integrations/whatsapp/embedded/start` e callback `GET /admin/integrations/whatsapp/embedded/callback`; o `state` é persistido como hash em `whatsapp_embedded_signup_sessions`.
+
+As regras ficam em `whatsapp_automation_rules`. A engine aceita palavra-chave, encaminhamento humano, resposta fixa, consulta segura de faturas e consulta segura de pedidos. Faturas vêm de `receivables.client_id`; pedidos vêm de `orders.client_id` quando existir ou de `orders → opportunities.client_id` no schema legado. O limite de resposta é 5 linhas.
+
+QR/short links oficiais ficam em `whatsapp_qr_codes` e são criados por `MetaWhatsAppClient.create_qr_code()`. Não existe conexão de WhatsApp Web por QR como dispositivo de produção neste módulo.
 
 ## Importação de clientes e fornecedores
 

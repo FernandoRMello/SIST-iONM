@@ -87,6 +87,15 @@ Passos mínimos:
 5. Use “Testar conexão” somente com um número permitido pela janela/template da Meta.
 6. Ative a integração após a Meta validar o webhook.
 
+O wizard também possui **Conectar com Meta**, que inicia o Embedded Signup oficial. Configure antes no `.env`:
+
+- `META_EMBEDDED_SIGNUP_APP_ID`;
+- `META_EMBEDDED_SIGNUP_CONFIG_ID`;
+- `META_EMBEDDED_SIGNUP_REDIRECT_URI`;
+- `META_EMBEDDED_SIGNUP_CLIENT_SECRET`.
+
+O `state` do Embedded Signup é salvo apenas como hash no banco. O callback rejeita `state` desconhecido e nunca renderiza `code`, `state`, token ou payload sensível em HTML.
+
 Defina `WHATSAPP_SECRET_KEY` no `.env` com pelo menos 32 caracteres aleatórios. Essa chave protege os segredos salvos no banco; se ela for perdida, será necessário reenviar token e app secret pelo wizard. Não copie tokens reais para commits, prints ou logs.
 
 O webhook público aceita:
@@ -95,6 +104,18 @@ O webhook público aceita:
 - `POST /integrations/whatsapp/webhook` para eventos assinados com `X-Hub-Signature-256`.
 
 Primeiro contato recebe triagem conservadora e a conversa aparece no chat interno como `WhatsApp · nome/telefone`. Dados financeiros ou pedidos não devem ser enviados automaticamente sem vínculo seguro entre telefone e cliente.
+
+Automações disponíveis no wizard:
+
+- regras por palavra-chave;
+- encaminhamento humano;
+- resposta fixa;
+- consulta segura de faturas;
+- consulta segura de pedidos.
+
+Consultas de fatura/pedido só retornam dados quando `whatsapp_contacts.client_id` está vinculado. Sem vínculo, o sistema responde pedindo confirmação cadastral e encaminhamento humano. Essa proteção evita que um telefone não confirmado receba informações financeiras.
+
+QR/short link oficial: use a seção **QR Code oficial** para gerar links de início de conversa pela API da Meta. Esse QR é para o cliente iniciar atendimento. Não confundir com WhatsApp Web: a plataforma **não** conecta um WhatsApp Web por QR Code como dispositivo de produção.
 
 ## Banco de desenvolvimento
 

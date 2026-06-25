@@ -1,6 +1,6 @@
 # Versões verificadas
 
-Verificação local em 23/06/2026.
+Verificação local em 25/06/2026.
 
 | Componente | Versão |
 |---|---:|
@@ -33,6 +33,9 @@ O handoff e os comandos de execução foram preparados para Linux/Ubuntu. A vali
 - WhatsApp Business Cloud API: preparada para API oficial da Meta via versão padrão `v23.0`, configurável no wizard administrativo.
 - Webhook local: `/integrations/whatsapp/webhook`.
 - Wizard: `/admin/integrations/whatsapp`, exclusivo para `admin`.
+- Embedded Signup oficial: `POST /admin/integrations/whatsapp/embedded/start` e callback `/admin/integrations/whatsapp/embedded/callback`, com `state` hasheado.
+- Automações WhatsApp: regras por palavra-chave, resposta fixa, encaminhamento humano e consultas seguras de faturas/pedidos vinculados.
+- QR/short link oficial: geração via Cloud API para clientes iniciarem conversa; WhatsApp Web por QR não é usado como dispositivo produtivo.
 
 ## Como reverificar
 

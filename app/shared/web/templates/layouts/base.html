@@ -70,6 +70,14 @@
         {{ nav_item('/commissions', 'Comissões', 'money', '/commissions') }}
         {{ nav_item('/reports/sellers', 'Relatórios', 'bi', '/reports/sellers') }}
       </section>
+      {% if user.role == 'admin' %}
+      <section class="ui-nav-group" data-nav-group>
+        <h2>RH</h2>
+        {{ nav_item('/hr/employees', 'Colaboradores', 'user', '/hr/employees') }}
+        {{ nav_item('/hr/rules', 'Regras de RH', 'money', '/hr/rules') }}
+        {{ nav_item('/hr/payroll', 'Folha de pagamento', 'finance', '/hr/payroll') }}
+      </section>
+      {% endif %}
       {% if can_view_bi or user.role == 'admin' %}
       <section class="ui-nav-group" data-nav-group>
         <h2>Administração</h2>

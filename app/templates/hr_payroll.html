@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
+{% block title %}Folha de pagamento{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack">
+  {{ page_header('Folha de pagamento', 'Gere, revise, aprove e registre pagamento da folha mensal.', 'RH') }}
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header"><div><h2>Gerar competência</h2></div></header>
+    <form class="ui-admin-form" method="post" action="/hr/payroll/generate">
+      <label class="ui-field" for="payroll-period"><span class="ui-field__label">Competência</span><input class="ui-field__control" id="payroll-period" name="period" placeholder="2026-06" pattern="\d{4}-\d{2}" required></label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Gerar folha</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>{% if current_period %}Competência {{ current_period.period }}{% else %}Nenhuma folha gerada{% endif %}</h2>
+        {% if current_period %}<p>Status: {{ current_period.status }}</p>{% endif %}
+      </div>
+      {% if current_period %}
+      <div class="ui-row-actions">
+        <form method="post" action="/hr/payroll/{{ current_period.id }}/approve"><button class="ui-button ui-button--secondary" type="submit">Aprovar</button></form>
+        <form method="post" action="/hr/payroll/{{ current_period.id }}/pay"><button class="ui-button ui-button--primary" type="submit">Marcar como paga</button></form>
+      </div>
+      {% endif %}
+    </header>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Colaborador</th><th>Tipo</th><th>Descrição</th><th>Base</th><th>%</th><th>Valor</th></tr></thead>
+        <tbody>
+        {% for item in items %}
+          <tr>
+            <td>{{ item.full_name }}</td>
+            <td>{{ item.item_type }}</td>
+            <td>{{ item.description }}</td>
+            <td class="money-sensitive">{{ money(item.basis_amount) }}</td>
+            <td>{{ item.percentage }}</td>
+            <td class="money-sensitive">{{ money(item.amount) }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">Nenhum item de folha.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

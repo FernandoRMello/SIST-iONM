@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
+{% block title %}Colaboradores{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack">
+  {{ page_header('Colaboradores', 'Cadastro de colaboradores, vínculo com usuário e base de remuneração.', 'RH') }}
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header"><div><h2>Novo colaborador</h2></div></header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/hr/employees">
+      <label class="ui-field" for="employee-name"><span class="ui-field__label">Nome completo</span><input class="ui-field__control" id="employee-name" name="full_name" required></label>
+      <label class="ui-field" for="employee-document"><span class="ui-field__label">Documento</span><input class="ui-field__control" id="employee-document" name="document"></label>
+      <label class="ui-field" for="employee-email"><span class="ui-field__label">E-mail</span><input class="ui-field__control" id="employee-email" name="email" type="email"></label>
+      <label class="ui-field" for="employee-phone"><span class="ui-field__label">Telefone</span><input class="ui-field__control" id="employee-phone" name="phone"></label>
+      <label class="ui-field" for="employee-job"><span class="ui-field__label">Cargo</span><input class="ui-field__control" id="employee-job" name="job_title"></label>
+      <label class="ui-field" for="employee-contract"><span class="ui-field__label">Contrato</span><select class="ui-field__control" id="employee-contract" name="contract_type"><option>CLT</option><option>PJ</option><option>Estágio</option><option>Autônomo</option><option>Sócio</option><option>Outro</option></select></label>
+      <label class="ui-field" for="employee-admission"><span class="ui-field__label">Admissão</span><input class="ui-field__control" id="employee-admission" name="admission_date" type="date"></label>
+      <label class="ui-field" for="employee-status"><span class="ui-field__label">Status</span><select class="ui-field__control" id="employee-status" name="status"><option>Ativo</option><option>Inativo</option></select></label>
+      <label class="ui-field" for="employee-salary"><span class="ui-field__label">Salário base</span><input class="ui-field__control" id="employee-salary" name="base_salary" inputmode="decimal"></label>
+      <label class="ui-field ui-admin-form__full" for="employee-notes"><span class="ui-field__label">Observações</span><input class="ui-field__control" id="employee-notes" name="notes"></label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Cadastrar colaborador</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header"><div><h2>Equipe</h2></div></header>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Contrato</th><th>Status</th><th>Salário</th><th>Usuário</th></tr></thead>
+        <tbody>
+        {% for employee in employees %}
+          <tr>
+            <td>{{ employee.full_name }}</td>
+            <td>{{ employee.job_title or '-' }}</td>
+            <td>{{ employee.contract_type }}</td>
+            <td>{{ employee.status }}</td>
+            <td class="money-sensitive">{{ money(employee.base_salary) }}</td>
+            <td>
+              {% if employee.user_id %}
+                #{{ employee.user_id }}
+              {% else %}
+                <form method="post" action="/hr/employees/{{ employee.id }}/create-user">
+                  <input class="ui-field__control" name="username" placeholder="usuário" required>
+                  <input class="ui-field__control" name="password" type="password" placeholder="senha" required>
+                  <select class="ui-field__control" name="profile_id">
+                    <option value="">Sem perfil</option>
+                    {% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }}</option>{% endfor %}
+                  </select>
+                  <button class="ui-button ui-button--ghost" type="submit">Criar usuário</button>
+                </form>
+              {% endif %}
+            </td>
+          </tr>
+        {% else %}
+          <tr><td colspan="6">Nenhum colaborador cadastrado.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

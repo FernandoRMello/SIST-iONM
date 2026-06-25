@@ -33,6 +33,8 @@ from app.features.catalog_import.service import (
     import_rows,
     parse_workbook,
 )
+from app.features.hr.repository import HRRepository
+from app.features.hr.routes import create_hr_router
 from app.features.profile_avatar.service import AvatarValidationError, process_avatar
 from app.features.whatsapp.repository import WhatsAppSettingsRepository
 from app.features.whatsapp.routes import create_whatsapp_router
@@ -367,6 +369,15 @@ app.include_router(
         render=render,
         require_admin=require_admin,
         current_user=current_user,
+    ),
+)
+
+app.include_router(
+    create_hr_router(
+        database_path=lambda: DB_PATH,
+        render=render,
+        current_user=current_user,
+        hash_password=hash_password,
     ),
 )
 
@@ -823,6 +834,7 @@ def init_db():
 def init_portal_modules():
     WhatsAppSettingsRepository(DB_PATH).init_schema()
     AccessControlRepository(DB_PATH).ensure_seed_data()
+    HRRepository(DB_PATH).init_schema()
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_likes (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,created_at TEXT,UNIQUE(post_id,user_id))""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,reaction TEXT CHECK(reaction IN ('like','dislike')),created_at TEXT,UNIQUE(post_id,user_id))""")

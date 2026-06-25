@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
+{% block title %}Regras de RH{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack">
+  {{ page_header('Regras de RH', 'Configure comissões e benefícios por colaborador.', 'RH') }}
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header"><div><h2>Comissão</h2></div></header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/hr/commission-rules">
+      <label class="ui-field" for="commission-name"><span class="ui-field__label">Nome</span><input class="ui-field__control" id="commission-name" name="name" required></label>
+      <label class="ui-field" for="commission-employee"><span class="ui-field__label">Colaborador</span><select class="ui-field__control" id="commission-employee" name="employee_id"><option value="">Todos</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.full_name }}</option>{% endfor %}</select></label>
+      <label class="ui-field" for="commission-basis"><span class="ui-field__label">Base</span><select class="ui-field__control" id="commission-basis" name="basis"><option value="profit">Lucro</option><option value="sale_total">Venda total</option></select></label>
+      <label class="ui-field" for="commission-scope"><span class="ui-field__label">Escopo</span><select class="ui-field__control" id="commission-scope" name="calculation_scope"><option value="individual">Individual</option><option value="company">Geral da empresa</option></select></label>
+      <label class="ui-field" for="commission-percent"><span class="ui-field__label">Percentual fixo</span><input class="ui-field__control" id="commission-percent" name="fixed_percentage" inputmode="decimal"></label>
+      <label><input type="checkbox" name="is_active" value="Sim" checked> Ativa</label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Criar regra de comissão</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header"><div><h2>Benefício</h2></div></header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/hr/benefit-rules">
+      <label class="ui-field" for="benefit-name"><span class="ui-field__label">Nome</span><input class="ui-field__control" id="benefit-name" name="name" required></label>
+      <label class="ui-field" for="benefit-employee"><span class="ui-field__label">Colaborador</span><select class="ui-field__control" id="benefit-employee" name="employee_id"><option value="">Todos</option>{% for employee in employees %}<option value="{{ employee.id }}">{{ employee.full_name }}</option>{% endfor %}</select></label>
+      <label class="ui-field" for="benefit-type"><span class="ui-field__label">Tipo</span><select class="ui-field__control" id="benefit-type" name="benefit_type"><option value="fixed_monthly">Fixo mensal</option><option value="performance">Desempenho</option></select></label>
+      <label class="ui-field" for="benefit-basis"><span class="ui-field__label">Base</span><select class="ui-field__control" id="benefit-basis" name="basis"><option value="fixed">Fixo</option><option value="profit">Lucro</option><option value="sale_total">Venda total</option></select></label>
+      <label class="ui-field" for="benefit-scope"><span class="ui-field__label">Escopo</span><select class="ui-field__control" id="benefit-scope" name="calculation_scope"><option value="individual">Individual</option><option value="company">Geral da empresa</option></select></label>
+      <label class="ui-field" for="benefit-amount"><span class="ui-field__label">Valor fixo</span><input class="ui-field__control" id="benefit-amount" name="fixed_amount" inputmode="decimal"></label>
+      <label class="ui-field" for="benefit-percent"><span class="ui-field__label">Percentual</span><input class="ui-field__control" id="benefit-percent" name="percentage" inputmode="decimal"></label>
+      <input type="hidden" name="target_value" value="0">
+      <label><input type="checkbox" name="is_active" value="Sim" checked> Ativa</label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Criar benefício</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header"><div><h2>Regras cadastradas</h2></div></header>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Tipo</th><th>Nome</th><th>Base</th><th>Percentual/Valor</th><th>Ativa</th></tr></thead>
+        <tbody>
+        {% for rule in commission_rules %}
+          <tr><td>Comissão</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ rule.fixed_percentage }}%</td><td>{{ rule.is_active }}</td></tr>
+        {% endfor %}
+        {% for rule in benefit_rules %}
+          <tr><td>Benefício</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

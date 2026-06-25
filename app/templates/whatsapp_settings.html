@@ -132,6 +132,38 @@
 
   <section class="ui-card ui-admin-section">
     <header class="ui-admin-section__header">
+      <div>
+        <p class="ui-eyebrow">QR Code oficial</p>
+        <h2>Links de início de conversa</h2>
+        <p>Gere QR/short links oficiais da Meta para clientes iniciarem atendimento pelo WhatsApp.</p>
+      </div>
+    </header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/admin/integrations/whatsapp/qr-codes">
+      <label class="ui-field" for="wa-qr-name"><span class="ui-field__label">Nome</span><input class="ui-field__control" id="wa-qr-name" name="name" placeholder="Atendimento site" autocomplete="off" required></label>
+      <label class="ui-field" for="wa-qr-prefilled-message"><span class="ui-field__label">Mensagem pré-preenchida</span><input class="ui-field__control" id="wa-qr-prefilled-message" name="prefilled_message" placeholder="Olá, vim pelo site" autocomplete="off"></label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--secondary" type="submit">Gerar QR/link oficial</button></div>
+    </form>
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Nome</th><th>Link</th><th>Mensagem</th><th>Ativo</th></tr></thead>
+        <tbody>
+        {% for qr_code in qr_codes %}
+          <tr>
+            <td>{{ qr_code.name }}</td>
+            <td>{% if qr_code.short_link %}<a href="{{ qr_code.short_link }}" target="_blank" rel="noopener">{{ qr_code.short_link }}</a>{% else %}-{% endif %}</td>
+            <td>{{ qr_code.prefilled_message or '-' }}</td>
+            <td>{{ qr_code.is_active }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4">Nenhum QR/link gerado ainda.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
       <div><p class="ui-eyebrow">Roteamento</p><h2>Setores iniciais</h2></div>
     </header>
     <div class="ui-table-wrapper">

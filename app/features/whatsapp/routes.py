@@ -114,6 +114,7 @@ def create_whatsapp_router(
                 "masked": masked,
                 "departments": repo.departments(),
                 "automation_rules": repo.automation_rules(),
+                "qr_codes": repo.qr_codes(),
                 "whatsapp_users": repo.active_users(),
                 "generated_verify_token": request.session.pop(
                     "whatsapp_generated_verify_token",
@@ -232,6 +233,39 @@ def create_whatsapp_router(
             response_text=str(form.get("response_text") or ""),
             target_department_id=target_department_id,
             is_active=str(form.get("is_active") or "") == "Sim",
+            created_by_user_id=int(user.get("id") or 0),
+        )
+        return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
+
+    @router.post("/admin/integrations/whatsapp/qr-codes")
+    async def whatsapp_qr_codes_create(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        user = current_user(request) or {}
+        form = await request.form()
+        repo = repository()
+        settings = repo.get_settings()
+        access_token = decrypt_secret(
+            settings.get("access_token_encrypted") or "",
+            _master_key(),
+        )
+        result = MetaWhatsAppClient().create_qr_code(
+            api_version=settings.get("api_version") or "v23.0",
+            phone_number_id=settings.get("phone_number_id") or "",
+            access_token=access_token,
+            prefilled_message=str(form.get("prefilled_message") or ""),
+        )
+        repo.save_qr_code(
+            name=str(form.get("name") or "Atendimento"),
+            code=str(result.get("code") or ""),
+            short_link=str(
+                result.get("deep_link_url")
+                or result.get("short_link")
+                or result.get("qr_image_url")
+                or "",
+            ),
+            prefilled_message=str(form.get("prefilled_message") or ""),
             created_by_user_id=int(user.get("id") or 0),
         )
         return RedirectResponse("/admin/integrations/whatsapp", status_code=303)

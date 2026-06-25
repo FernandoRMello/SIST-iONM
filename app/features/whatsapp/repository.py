@@ -139,6 +139,21 @@ class WhatsAppSettingsRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_qr_codes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    code TEXT,
+                    short_link TEXT,
+                    prefilled_message TEXT,
+                    is_active TEXT DEFAULT 'Sim',
+                    created_by_user_id INTEGER,
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+                """
+            )
             now = datetime.now().isoformat(timespec="seconds")
             for name in DEFAULT_DEPARTMENTS:
                 connection.execute(
@@ -500,6 +515,48 @@ class WhatsAppSettingsRepository:
             except sqlite3.OperationalError:
                 return []
         return [dict(row) for row in rows]
+
+    def qr_codes(self) -> list[dict[str, Any]]:
+        self.init_schema()
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM whatsapp_qr_codes ORDER BY id DESC",
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def save_qr_code(
+        self,
+        *,
+        name: str,
+        code: str,
+        short_link: str,
+        prefilled_message: str,
+        created_by_user_id: int,
+    ) -> int:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO whatsapp_qr_codes(
+                    name, code, short_link, prefilled_message,
+                    is_active, created_by_user_id, created_at, updated_at
+                )
+                VALUES(?,?,?,?,?,?,?,?)
+                """,
+                (
+                    name.strip(),
+                    code.strip(),
+                    short_link.strip(),
+                    prefilled_message.strip(),
+                    "Sim",
+                    created_by_user_id,
+                    now,
+                    now,
+                ),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
 
     def find_message(self, provider_message_id: str) -> dict[str, Any] | None:
         self.init_schema()

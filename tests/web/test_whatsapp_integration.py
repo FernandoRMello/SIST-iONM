@@ -309,3 +309,25 @@ def test_admin_can_create_whatsapp_automation_rule(
             "SELECT COUNT(*) FROM whatsapp_automation_rules",
         ).fetchone()[0]
     assert count == 1
+
+
+def test_admin_can_generate_official_whatsapp_qr_code(
+    admin_client: TestClient,
+    monkeypatch,
+) -> None:
+    _save_valid_whatsapp_settings(admin_client)
+
+    class FakeMetaClient:
+        def create_qr_code(self, **kwargs):
+            return {"code": "QR123", "deep_link_url": "https://wa.me/message/QR123"}
+
+    monkeypatch.setattr("app.features.whatsapp.routes.MetaWhatsAppClient", FakeMetaClient)
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/qr-codes",
+        data={"name": "Atendimento", "prefilled_message": "Olá, vim pelo site"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    page = admin_client.get("/admin/integrations/whatsapp")
+    assert "https://wa.me/message/QR123" in page.text

@@ -10,7 +10,9 @@ from app.features.hr.repository import HRRepository
 
 
 def _to_float(value: object) -> float:
-    text = str(value or "0").replace(".", "").replace(",", ".")
+    text = str(value or "0").strip()
+    if "," in text:
+        text = text.replace(".", "").replace(",", ".")
     try:
         return float(text)
     except ValueError:
@@ -89,6 +91,8 @@ def create_hr_router(
             user_id=None,
             manager_user_id=None,
             notes=str(form.get("notes") or ""),
+            is_seller=str(form.get("is_seller") or "") == "Sim",
+            seller_commission_rate=_to_float(form.get("seller_commission_rate")),
         )
         return RedirectResponse("/hr/employees", status_code=303)
 
@@ -122,7 +126,7 @@ def create_hr_router(
                     username,
                     hash_password(password),
                     "vendedor",
-                    None,
+                    employee.get("seller_id"),
                     "Sim",
                     employee.get("email") or "",
                 ),
@@ -158,6 +162,7 @@ def create_hr_router(
                 "employees": repo.employees(),
                 "commission_rules": repo.commission_rules(),
                 "benefit_rules": repo.benefit_rules(),
+                "adjustment_rules": repo.payroll_adjustment_rules(),
             },
         )
 
@@ -176,6 +181,23 @@ def create_hr_router(
             calculation_scope=str(form.get("calculation_scope") or "company"),
             percentage_type="fixed",
             fixed_percentage=_to_float(form.get("fixed_percentage")),
+            is_active=str(form.get("is_active") or "") == "Sim",
+        )
+        return RedirectResponse("/hr/rules", status_code=303)
+
+    @router.post("/hr/payroll-adjustment-rules")
+    async def payroll_adjustment_rule_create(request: Request):
+        denied = require_permission(request, "hr.manage")
+        if denied:
+            return denied
+        form = await request.form()
+        hr_repository().create_payroll_adjustment_rule(
+            name=str(form.get("name") or ""),
+            target_contract=str(form.get("target_contract") or "CLT"),
+            item_type=str(form.get("item_type") or "discount"),
+            basis=str(form.get("basis") or "base_salary"),
+            fixed_amount=_to_float(form.get("fixed_amount")),
+            percentage=_to_float(form.get("percentage")),
             is_active=str(form.get("is_active") or "") == "Sim",
         )
         return RedirectResponse("/hr/rules", status_code=303)
@@ -214,6 +236,58 @@ def create_hr_router(
             request,
             "hr_payroll.html",
             {"periods": periods, "current_period": current_period, "items": items},
+        )
+
+    @router.get("/hr/payroll/{period_id}/print-clt")
+    def payroll_print_clt(request: Request, period_id: int):
+        denied = require_permission(request, "hr.payroll.view")
+        if denied:
+            return denied
+        repo = hr_repository()
+        return render(
+            request,
+            "hr_payroll_print.html",
+            {
+                "period": repo.payroll_period(period_id),
+                "summaries": repo.payroll_summaries(period_id, contract_type="CLT"),
+            },
+        )
+
+    @router.get("/hr/payroll/{period_id}/statements")
+    def payroll_statements(request: Request, period_id: int):
+        denied = require_permission(request, "hr.payroll.view")
+        if denied:
+            return denied
+        repo = hr_repository()
+        summaries = [
+            summary
+            for summary in repo.payroll_summaries(period_id)
+            if (summary.get("employee") or {}).get("contract_type") != "CLT"
+        ]
+        return render(
+            request,
+            "hr_payment_statement.html",
+            {
+                "period": repo.payroll_period(period_id),
+                "summaries": summaries,
+                "single_document": False,
+            },
+        )
+
+    @router.get("/hr/payroll/{period_id}/employees/{employee_id}/statement")
+    def employee_statement(request: Request, period_id: int, employee_id: int):
+        denied = require_permission(request, "hr.payroll.view")
+        if denied:
+            return denied
+        repo = hr_repository()
+        return render(
+            request,
+            "hr_payment_statement.html",
+            {
+                "period": repo.payroll_period(period_id),
+                "summaries": [repo.employee_payment_summary(period_id, employee_id)],
+                "single_document": True,
+            },
         )
 
     @router.post("/hr/payroll/generate")

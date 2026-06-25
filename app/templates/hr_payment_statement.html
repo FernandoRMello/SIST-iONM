@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
+{% block title %}Demonstrativo de pagamento{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
+<link rel="stylesheet" href="/assets/css/hr-documents.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack hr-print-documents">
+  {{ page_header('Demonstrativo de pagamento', 'Documento para representantes comerciais, PJs e comissionados.', 'RH') }}
+
+  <section class="ui-card ui-admin-section hr-document-toolbar">
+    <div>
+      <h2>Competência {{ period.period if period else '-' }}</h2>
+      <p>Status: {{ period.status if period else '-' }}</p>
+    </div>
+    <p>Mostra valor a pagar, base de cálculo, comissões e benefícios.</p>
+  </section>
+
+  {% for summary in summaries %}
+    {% set employee = summary.employee %}
+    <section class="ui-card ui-admin-section hr-document">
+      <header class="hr-document__header">
+        <div>
+          <p class="hr-document__eyebrow">Demonstrativo</p>
+          <h2>{{ employee.full_name }}</h2>
+          <p>{{ employee.job_title or '-' }} · {{ employee.contract_type }} · Documento {{ employee.document or '-' }}</p>
+        </div>
+        <div class="hr-document__amount">
+          <span>Valor a pagar</span>
+          <strong class="money-sensitive">{{ money(summary.net_amount) }}</strong>
+        </div>
+      </header>
+
+      <div class="hr-document__grid">
+        <article>
+          <span>Comissão</span>
+          <strong class="money-sensitive">{{ money(summary.commission_amount) }}</strong>
+        </article>
+        <article>
+          <span>Benefício</span>
+          <strong class="money-sensitive">{{ money(summary.benefit_amount) }}</strong>
+        </article>
+        <article>
+          <span>Descontos</span>
+          <strong class="money-sensitive">{{ money(summary.discount_amount) }}</strong>
+        </article>
+      </div>
+
+      <div class="ui-table-wrapper">
+        <table class="ui-table">
+          <thead><tr><th>Tipo</th><th>Descrição</th><th>Base de cálculo</th><th>%</th><th>Valor</th></tr></thead>
+          <tbody>
+          {% for item in summary["items"] %}
+            <tr>
+              <td>{{ item.item_type }}</td>
+              <td>{{ item.description }}</td>
+              <td class="money-sensitive">{{ money(item.basis_amount) }}</td>
+              <td>{{ item.percentage }}</td>
+              <td class="money-sensitive">{{ money(item.amount) }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  {% else %}
+    <section class="ui-card ui-admin-section"><p>Nenhum demonstrativo disponível nesta competência.</p></section>
+  {% endfor %}
+</div>
+{% endblock %}

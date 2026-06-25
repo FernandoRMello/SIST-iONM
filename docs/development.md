@@ -150,18 +150,23 @@ O perfil legado `admin` é fallback seguro e mantém acesso completo. Ao criar u
 O menu **RH** contém:
 
 - **Colaboradores**: cadastro, salário base, contrato e criação de usuário vinculado;
-- **Regras de RH**: comissão por lucro ou venda total e benefícios fixos/percentuais;
-- **Folha de pagamento**: geração mensal, aprovação e marcação como paga.
+- **Regras de RH**: comissão por lucro ou venda total, benefícios fixos/percentuais, descontos e encargos;
+- **Folha de pagamento**: geração mensal, aprovação, impressão da folha CLT, demonstrativos e marcação como paga.
 
 Fluxo mínimo:
 
 1. Cadastre colaboradores ativos com salário base.
-2. Crie regras de comissão/benefício.
-3. Gere a competência em `AAAA-MM`.
-4. Revise os itens da folha.
-5. Aprove e marque como paga.
+2. Se o colaborador for vendedor ou representante, marque **Também é vendedor/representante** e informe o percentual padrão. O sistema criará/atualizará o registro em `sellers`.
+3. Crie regras de comissão/benefício.
+4. Crie regras de desconto/encargo para CLT quando necessário, como INSS, adiantamentos ou FGTS patronal. As alíquotas são configuráveis e devem ser revisadas pelo RH/contabilidade.
+5. Gere a competência em `AAAA-MM`.
+6. Revise os itens da folha.
+7. Use **Imprimir folha CLT** para colaboradores CLT e **Demonstrativos** para representantes, PJs e comissionados.
+8. Aprove e marque como paga.
 
-A geração cria itens rastreáveis em `hr_payroll_items`. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
+A geração cria itens rastreáveis em `hr_payroll_items`. Descontos reduzem o valor líquido; encargos patronais aparecem na folha CLT, mas não reduzem o valor pago ao colaborador. Ao marcar como paga, o histórico vai para `hr_payment_history`. Folhas aprovadas/pagas não devem ser apagadas manualmente; ajustes futuros devem ser lançamentos complementares.
+
+Ao criar usuário a partir de um colaborador-vendedor, o `seller_id` é herdado automaticamente. Esse vínculo padroniza comissões, benefícios, pedidos e relatórios sobre a mesma pessoa.
 
 ## Importação por Excel
 

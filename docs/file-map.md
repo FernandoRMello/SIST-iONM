@@ -6,7 +6,7 @@
 app/main.py                         aplicação legada, rotas e regras ainda monolíticas
 app/features/catalog_import/       importação Excel de clientes e fornecedores
 app/features/access_control/       perfis configuráveis, permissões especiais e atribuição a usuários
-app/features/hr/                   colaboradores, regras de comissão/benefícios e folha mensal
+app/features/hr/                   colaboradores, vendedores vinculados, regras e folha mensal
 app/templates/                      templates originais + WhatsApp + Perfis + RH
 app/shared/web/templates/layouts/   shell principal
 app/shared/web/templates/components macros Jinja
@@ -109,15 +109,20 @@ O modelo novo usa `access_profiles`, `access_permissions`, `access_profile_permi
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `app/features/hr/repository.py` | schema de colaboradores, regras, folha, histórico e cálculo inicial |
-| `app/features/hr/routes.py` | rotas de colaboradores, criação de usuário, regras e folha |
-| `app/templates/hr_employees.html` | cadastro de colaboradores e vínculo com usuário |
-| `app/templates/hr_rules.html` | regras de comissão e benefícios |
-| `app/templates/hr_payroll.html` | geração, revisão, aprovação e pagamento de folha |
-| `tests/features/test_hr_repository.py` | cálculo de salário, benefício e comissão |
-| `tests/web/test_hr_module.py` | permissões e rotas do módulo RH |
+| `app/features/hr/repository.py` | schema de colaboradores, vínculo com vendedores, regras, folha, histórico, descontos/encargos e resumos |
+| `app/features/hr/routes.py` | rotas de colaboradores, criação de usuário, regras, folha e documentos imprimíveis |
+| `app/templates/hr_employees.html` | cadastro de colaboradores, marcação de vendedor/representante e vínculo com usuário |
+| `app/templates/hr_rules.html` | regras de comissão, benefícios, descontos e encargos |
+| `app/templates/hr_payroll.html` | geração, revisão, aprovação, pagamento e atalhos de impressão |
+| `app/templates/hr_payroll_print.html` | folha de pagamento CLT imprimível, com proventos, descontos, encargos e líquido |
+| `app/templates/hr_payment_statement.html` | demonstrativo de representantes/PJ/comissionados, com base de cálculo, comissão, benefício e valor a pagar |
+| `app/static/css/hr-documents.css` | estilos de impressão dos documentos de RH |
+| `tests/features/test_hr_repository.py` | cálculo de salário, benefício, comissão, descontos, encargos e vínculo vendedor |
+| `tests/web/test_hr_module.py` | permissões, rotas, criação de usuário e documentos do módulo RH |
 
 As permissões usadas pelo RH são `hr.view`, `hr.manage`, `hr.payroll.view`, `hr.payroll.process`, `hr.payroll.approve` e `hr.payroll.pay`. A geração de folha cria itens rastreáveis e o pagamento grava histórico.
+
+Quando um colaborador é marcado como vendedor/representante, `HRRepository.create_employee()` sincroniza o registro na tabela `sellers` e grava `hr_employees.seller_id`. Ao criar o usuário a partir do colaborador, o mesmo `seller_id` é aplicado em `users.seller_id`. Essa é a regra padrão: não duplicar pessoa em RH e Cadastros; o colaborador é o cadastro mestre, e o vendedor é a projeção comercial necessária para pedidos, comissões e relatórios.
 
 ## Importação de clientes e fornecedores
 

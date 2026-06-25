@@ -41,6 +41,25 @@
   </section>
 
   <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <h2>Descontos e encargos da folha</h2>
+        <p>Use para configurar INSS, adiantamentos, FGTS patronal e outros itens da folha CLT.</p>
+      </div>
+    </header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/hr/payroll-adjustment-rules">
+      <label class="ui-field" for="adjustment-name"><span class="ui-field__label">Nome</span><input class="ui-field__control" id="adjustment-name" name="name" required></label>
+      <label class="ui-field" for="adjustment-contract"><span class="ui-field__label">Contrato alvo</span><select class="ui-field__control" id="adjustment-contract" name="target_contract"><option>CLT</option><option>PJ</option><option>Representante</option><option>Todos</option></select></label>
+      <label class="ui-field" for="adjustment-type"><span class="ui-field__label">Tipo</span><select class="ui-field__control" id="adjustment-type" name="item_type"><option value="discount">Desconto do colaborador</option><option value="employer_charge">Encargo da empresa</option></select></label>
+      <label class="ui-field" for="adjustment-basis"><span class="ui-field__label">Base</span><select class="ui-field__control" id="adjustment-basis" name="basis"><option value="base_salary">Salário base</option><option value="gross_pay">Valor bruto gerado</option><option value="sale_total">Venda total</option><option value="profit">Lucro</option></select></label>
+      <label class="ui-field" for="adjustment-fixed"><span class="ui-field__label">Valor fixo</span><input class="ui-field__control" id="adjustment-fixed" name="fixed_amount" inputmode="decimal"></label>
+      <label class="ui-field" for="adjustment-percent"><span class="ui-field__label">Percentual</span><input class="ui-field__control" id="adjustment-percent" name="percentage" inputmode="decimal"></label>
+      <label><input type="checkbox" name="is_active" value="Sim" checked> Ativa</label>
+      <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Criar regra de folha</button></div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
     <header class="ui-admin-section__header"><div><h2>Regras cadastradas</h2></div></header>
     <div class="ui-table-wrapper">
       <table class="ui-table">
@@ -51,6 +70,9 @@
         {% endfor %}
         {% for rule in benefit_rules %}
           <tr><td>Benefício</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td></tr>
+        {% endfor %}
+        {% for rule in adjustment_rules %}
+          <tr><td>{{ 'Encargo' if rule.item_type == 'employer_charge' else 'Desconto' }}</td><td>{{ rule.name }}</td><td>{{ rule.basis }}</td><td>{{ money(rule.fixed_amount) }} / {{ rule.percentage }}%</td><td>{{ rule.is_active }}</td></tr>
         {% endfor %}
         </tbody>
       </table>

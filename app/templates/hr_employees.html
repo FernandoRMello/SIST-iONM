@@ -23,6 +23,8 @@
       <label class="ui-field" for="employee-admission"><span class="ui-field__label">Admissão</span><input class="ui-field__control" id="employee-admission" name="admission_date" type="date"></label>
       <label class="ui-field" for="employee-status"><span class="ui-field__label">Status</span><select class="ui-field__control" id="employee-status" name="status"><option>Ativo</option><option>Inativo</option></select></label>
       <label class="ui-field" for="employee-salary"><span class="ui-field__label">Salário base</span><input class="ui-field__control" id="employee-salary" name="base_salary" inputmode="decimal"></label>
+      <label class="ui-field" for="employee-is-seller"><span class="ui-field__label">Também é vendedor/representante?</span><select class="ui-field__control" id="employee-is-seller" name="is_seller"><option value="Não">Não</option><option value="Sim">Sim</option></select></label>
+      <label class="ui-field" for="employee-seller-commission"><span class="ui-field__label">% comissão padrão do vendedor</span><input class="ui-field__control" id="employee-seller-commission" name="seller_commission_rate" inputmode="decimal"></label>
       <label class="ui-field ui-admin-form__full" for="employee-notes"><span class="ui-field__label">Observações</span><input class="ui-field__control" id="employee-notes" name="notes"></label>
       <div class="ui-admin-form__actions"><button class="ui-button ui-button--primary" type="submit">Cadastrar colaborador</button></div>
     </form>
@@ -32,13 +34,14 @@
     <header class="ui-admin-section__header"><div><h2>Equipe</h2></div></header>
     <div class="ui-table-wrapper">
       <table class="ui-table">
-        <thead><tr><th>Nome</th><th>Cargo</th><th>Contrato</th><th>Status</th><th>Salário</th><th>Usuário</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Cargo</th><th>Contrato</th><th>Vendedor</th><th>Status</th><th>Salário</th><th>Usuário</th></tr></thead>
         <tbody>
         {% for employee in employees %}
           <tr>
             <td>{{ employee.full_name }}</td>
             <td>{{ employee.job_title or '-' }}</td>
             <td>{{ employee.contract_type }}</td>
+            <td>{% if employee.seller_id %}Sim, #{{ employee.seller_id }}{% else %}Não{% endif %}</td>
             <td>{{ employee.status }}</td>
             <td class="money-sensitive">{{ money(employee.base_salary) }}</td>
             <td>
@@ -58,7 +61,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="6">Nenhum colaborador cadastrado.</td></tr>
+          <tr><td colspan="7">Nenhum colaborador cadastrado.</td></tr>
         {% endfor %}
         </tbody>
       </table>

@@ -27,6 +27,8 @@
       </div>
       {% if current_period %}
       <div class="ui-row-actions">
+        <a class="ui-button ui-button--ghost" href="/hr/payroll/{{ current_period.id }}/print-clt" target="_blank" rel="noopener">Imprimir folha CLT</a>
+        <a class="ui-button ui-button--ghost" href="/hr/payroll/{{ current_period.id }}/statements" target="_blank" rel="noopener">Demonstrativos</a>
         <form method="post" action="/hr/payroll/{{ current_period.id }}/approve"><button class="ui-button ui-button--secondary" type="submit">Aprovar</button></form>
         <form method="post" action="/hr/payroll/{{ current_period.id }}/pay"><button class="ui-button ui-button--primary" type="submit">Marcar como paga</button></form>
       </div>

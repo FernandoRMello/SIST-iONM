@@ -17,9 +17,25 @@ class HRRepository:
         with self.connect() as connection:
             connection.execute(
                 """
+                CREATE TABLE IF NOT EXISTS sellers (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    username TEXT,
+                    email TEXT,
+                    phone TEXT,
+                    commission_rate REAL DEFAULT 10,
+                    active TEXT DEFAULT 'Sim'
+                )
+                """,
+            )
+            connection.execute(
+                """
                 CREATE TABLE IF NOT EXISTS hr_employees (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER,
+                    seller_id INTEGER,
+                    is_seller TEXT DEFAULT 'Não',
+                    seller_commission_rate REAL DEFAULT 0,
                     full_name TEXT,
                     document TEXT,
                     email TEXT,
@@ -36,6 +52,14 @@ class HRRepository:
                     updated_at TEXT
                 )
                 """,
+            )
+            self._ensure_column(connection, "hr_employees", "seller_id", "INTEGER")
+            self._ensure_column(connection, "hr_employees", "is_seller", "TEXT DEFAULT 'Não'")
+            self._ensure_column(
+                connection,
+                "hr_employees",
+                "seller_commission_rate",
+                "REAL DEFAULT 0",
             )
             connection.execute(
                 """
@@ -78,6 +102,22 @@ class HRRepository:
                     fixed_amount REAL DEFAULT 0,
                     percentage REAL DEFAULT 0,
                     target_value REAL DEFAULT 0,
+                    is_active TEXT DEFAULT 'Sim',
+                    created_at TEXT,
+                    updated_at TEXT
+                )
+                """,
+            )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS hr_payroll_adjustment_rules (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT,
+                    target_contract TEXT,
+                    item_type TEXT,
+                    basis TEXT,
+                    fixed_amount REAL DEFAULT 0,
+                    percentage REAL DEFAULT 0,
                     is_active TEXT DEFAULT 'Sim',
                     created_at TEXT,
                     updated_at TEXT
@@ -131,6 +171,22 @@ class HRRepository:
             )
             connection.commit()
 
+    def _ensure_column(
+        self,
+        connection: sqlite3.Connection,
+        table_name: str,
+        column_name: str,
+        column_definition: str,
+    ) -> None:
+        columns = {
+            str(row["name"])
+            for row in connection.execute(f"PRAGMA table_info({table_name})").fetchall()
+        }
+        if column_name not in columns:
+            connection.execute(
+                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_definition}",
+            )
+
     def create_employee(
         self,
         *,
@@ -147,21 +203,37 @@ class HRRepository:
         user_id: int | None,
         manager_user_id: int | None,
         notes: str,
+        is_seller: bool = False,
+        seller_commission_rate: float = 0,
     ) -> int:
         self.init_schema()
         now = datetime.now().isoformat(timespec="seconds")
         with self.connect() as connection:
+            seller_id = None
+            if is_seller:
+                seller_id = self._sync_seller(
+                    connection,
+                    name=full_name,
+                    email=email,
+                    phone=phone,
+                    commission_rate=seller_commission_rate,
+                    active=status == "Ativo",
+                )
             cursor = connection.execute(
                 """
                 INSERT INTO hr_employees(
-                    user_id, full_name, document, email, phone, department_id,
+                    user_id, seller_id, is_seller, seller_commission_rate,
+                    full_name, document, email, phone, department_id,
                     job_title, contract_type, admission_date, status, base_salary,
                     manager_user_id, notes, created_at, updated_at
                 )
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """,
                 (
                     user_id,
+                    seller_id,
+                    "Sim" if is_seller else "Não",
+                    float(seller_commission_rate or 0),
                     full_name.strip(),
                     document.strip(),
                     email.strip(),
@@ -180,6 +252,64 @@ class HRRepository:
             )
             connection.commit()
             return int(cursor.lastrowid)
+
+    def _sync_seller(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        name: str,
+        email: str,
+        phone: str,
+        commission_rate: float,
+        active: bool,
+    ) -> int:
+        clean_email = email.strip()
+        clean_name = name.strip()
+        row = None
+        if clean_email:
+            row = connection.execute(
+                "SELECT id FROM sellers WHERE lower(COALESCE(email,''))=lower(?)",
+                (clean_email,),
+            ).fetchone()
+        if row is None:
+            row = connection.execute(
+                "SELECT id FROM sellers WHERE lower(COALESCE(name,''))=lower(?)",
+                (clean_name,),
+            ).fetchone()
+        active_text = "Sim" if active else "Não"
+        if row:
+            seller_id = int(row["id"])
+            connection.execute(
+                """
+                UPDATE sellers
+                SET name=?, email=?, phone=?, commission_rate=?, active=?
+                WHERE id=?
+                """,
+                (
+                    clean_name,
+                    clean_email,
+                    phone.strip(),
+                    float(commission_rate or 0),
+                    active_text,
+                    seller_id,
+                ),
+            )
+            return seller_id
+        cursor = connection.execute(
+            """
+            INSERT INTO sellers(name,username,email,phone,commission_rate,active)
+            VALUES(?,?,?,?,?,?)
+            """,
+            (
+                clean_name,
+                "",
+                clean_email,
+                phone.strip(),
+                float(commission_rate or 0),
+                active_text,
+            ),
+        )
+        return int(cursor.lastrowid)
 
     def employee(self, employee_id: int) -> dict[str, Any] | None:
         self.init_schema()
@@ -297,6 +427,51 @@ class HRRepository:
             ).fetchall()
         return [dict(row) for row in rows]
 
+    def create_payroll_adjustment_rule(
+        self,
+        *,
+        name: str,
+        target_contract: str,
+        item_type: str,
+        basis: str,
+        fixed_amount: float,
+        percentage: float,
+        is_active: bool,
+    ) -> int:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO hr_payroll_adjustment_rules(
+                    name, target_contract, item_type, basis, fixed_amount,
+                    percentage, is_active, created_at, updated_at
+                )
+                VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    name.strip(),
+                    target_contract.strip() or "CLT",
+                    item_type.strip() or "discount",
+                    basis.strip() or "base_salary",
+                    float(fixed_amount or 0),
+                    float(percentage or 0),
+                    "Sim" if is_active else "Não",
+                    now,
+                    now,
+                ),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
+
+    def payroll_adjustment_rules(self) -> list[dict[str, Any]]:
+        self.init_schema()
+        with self.connect() as connection:
+            rows = connection.execute(
+                "SELECT * FROM hr_payroll_adjustment_rules ORDER BY id DESC",
+            ).fetchall()
+        return [dict(row) for row in rows]
+
     def payroll_periods(self) -> list[dict[str, Any]]:
         self.init_schema()
         with self.connect() as connection:
@@ -351,6 +526,9 @@ class HRRepository:
             benefit_rules = connection.execute(
                 "SELECT * FROM hr_benefit_rules WHERE is_active='Sim'",
             ).fetchall()
+            adjustment_rules = connection.execute(
+                "SELECT * FROM hr_payroll_adjustment_rules WHERE is_active='Sim'",
+            ).fetchall()
             for employee in employees:
                 self._insert_item(
                     connection,
@@ -403,8 +581,63 @@ class HRRepository:
                         int(rule["id"]),
                         now,
                     )
+                for adjustment in adjustment_rules:
+                    target = str(adjustment["target_contract"] or "Todos").casefold()
+                    contract = str(employee["contract_type"] or "").casefold()
+                    if target not in {"todos", "all", contract}:
+                        continue
+                    basis_amount = self._payroll_basis_amount(
+                        connection,
+                        period_id,
+                        int(employee["id"]),
+                        employee,
+                        str(adjustment["basis"] or "base_salary"),
+                        period,
+                    )
+                    amount = float(adjustment["fixed_amount"] or 0)
+                    percentage = float(adjustment["percentage"] or 0)
+                    if percentage:
+                        amount += basis_amount * percentage / 100
+                    if amount <= 0:
+                        continue
+                    self._insert_item(
+                        connection,
+                        period_id,
+                        int(employee["id"]),
+                        str(adjustment["item_type"] or "discount"),
+                        str(adjustment["name"]),
+                        basis_amount,
+                        percentage,
+                        amount,
+                        "payroll_adjustment_rule",
+                        int(adjustment["id"]),
+                        now,
+                    )
             connection.commit()
         return period_id
+
+    def _payroll_basis_amount(
+        self,
+        connection: sqlite3.Connection,
+        period_id: int,
+        employee_id: int,
+        employee: sqlite3.Row,
+        basis: str,
+        period: str,
+    ) -> float:
+        if basis == "base_salary":
+            return float(employee["base_salary"] or 0)
+        if basis in {"sale_total", "profit"}:
+            return self._company_basis_total(basis, period)
+        row = connection.execute(
+            """
+            SELECT COALESCE(SUM(amount),0) AS total
+            FROM hr_payroll_items
+            WHERE payroll_period_id=? AND employee_id=? AND item_type IN ('salary','benefit','commission')
+            """,
+            (period_id, employee_id),
+        ).fetchone()
+        return float(row["total"] or 0)
 
     def _insert_item(
         self,
@@ -456,6 +689,65 @@ class HRRepository:
                 (period_id,),
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def payroll_period(self, period_id: int) -> dict[str, Any] | None:
+        self.init_schema()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM hr_payroll_periods WHERE id=?",
+                (period_id,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def employee_payment_summary(self, period_id: int, employee_id: int) -> dict[str, Any]:
+        self.init_schema()
+        employee = self.employee(employee_id)
+        period = self.payroll_period(period_id)
+        items = [
+            item
+            for item in self.payroll_items(period_id)
+            if int(item["employee_id"]) == int(employee_id)
+        ]
+        salary_amount = self._sum_items(items, {"salary"})
+        benefit_amount = self._sum_items(items, {"benefit"})
+        commission_amount = self._sum_items(items, {"commission"})
+        discount_amount = self._sum_items(items, {"discount"})
+        employer_charge_amount = self._sum_items(items, {"employer_charge"})
+        gross_amount = salary_amount + benefit_amount + commission_amount
+        contract = str((employee or {}).get("contract_type") or "")
+        return {
+            "period": period,
+            "employee": employee,
+            "items": items,
+            "document_type": "Folha de pagamento" if contract == "CLT" else "Demonstrativo",
+            "salary_amount": salary_amount,
+            "benefit_amount": benefit_amount,
+            "commission_amount": commission_amount,
+            "gross_amount": gross_amount,
+            "discount_amount": discount_amount,
+            "employer_charge_amount": employer_charge_amount,
+            "net_amount": gross_amount - discount_amount,
+        }
+
+    def payroll_summaries(
+        self,
+        period_id: int,
+        *,
+        contract_type: str | None = None,
+    ) -> list[dict[str, Any]]:
+        summaries = []
+        for employee in self.employees():
+            if contract_type and str(employee["contract_type"]) != contract_type:
+                continue
+            summary = self.employee_payment_summary(period_id, int(employee["id"]))
+            if summary["items"]:
+                summaries.append(summary)
+        return summaries
+
+    def _sum_items(self, items: list[dict[str, Any]], item_types: set[str]) -> float:
+        return float(
+            sum(float(item["amount"] or 0) for item in items if item["item_type"] in item_types),
+        )
 
     def set_payroll_status(self, *, period_id: int, status: str, user_id: int) -> None:
         column_user = {

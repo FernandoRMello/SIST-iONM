@@ -15,7 +15,7 @@ JAVASCRIPT_ROOTS = (
 
 def test_all_page_templates_are_local_and_inline_handler_free() -> None:
     pages = sorted(TEMPLATES.glob("*.html"))
-    assert len(pages) == 23
+    assert len(pages) == 25
 
     for page in pages:
         source = page.read_text(encoding="utf-8")

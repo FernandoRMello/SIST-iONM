@@ -8,6 +8,19 @@ def _prepare_database(path: Path) -> HRRepository:
     with sqlite3.connect(path) as connection:
         connection.execute(
             """
+            CREATE TABLE sellers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                username TEXT,
+                email TEXT,
+                phone TEXT,
+                commission_rate REAL DEFAULT 10,
+                active TEXT DEFAULT 'Sim'
+            )
+            """,
+        )
+        connection.execute(
+            """
             CREATE TABLE orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 client_id INTEGER,
@@ -107,3 +120,136 @@ def test_payroll_generates_salary_fixed_benefit_and_sale_commission(
     assert {item["item_type"] for item in items} == {"salary", "benefit", "commission"}
     assert sum(item["amount"] for item in items) == 3100.0
     assert any(item["description"] == "Comissão venda total" and item["amount"] == 500.0 for item in items)
+
+
+def test_seller_employee_is_synced_with_sellers_catalog(tmp_path: Path) -> None:
+    repository = _prepare_database(tmp_path / "hr.db")
+
+    employee_id = repository.create_employee(
+        full_name="Representante QA",
+        document="789",
+        email="representante@example.invalid",
+        phone="11777777777",
+        department_id=None,
+        job_title="Vendedor",
+        contract_type="PJ",
+        admission_date="2026-06-01",
+        status="Ativo",
+        base_salary=1200.0,
+        user_id=None,
+        manager_user_id=None,
+        notes="",
+        is_seller=True,
+        seller_commission_rate=12.5,
+    )
+
+    employee = repository.employee(employee_id)
+
+    assert employee["seller_id"] is not None
+    with sqlite3.connect(repository.database_path) as connection:
+        seller = connection.execute(
+            "SELECT name,email,phone,commission_rate,active FROM sellers WHERE id=?",
+            (employee["seller_id"],),
+        ).fetchone()
+    assert seller == ("Representante QA", "representante@example.invalid", "11777777777", 12.5, "Sim")
+
+
+def test_clt_payroll_generates_discounts_charges_and_net_summary(
+    tmp_path: Path,
+) -> None:
+    repository = _prepare_database(tmp_path / "hr.db")
+    employee_id = repository.create_employee(
+        full_name="CLT QA",
+        document="111",
+        email="clt@example.invalid",
+        phone="11666666666",
+        department_id=None,
+        job_title="Analista",
+        contract_type="CLT",
+        admission_date="2026-06-01",
+        status="Ativo",
+        base_salary=3000.0,
+        user_id=None,
+        manager_user_id=None,
+        notes="",
+    )
+    repository.create_payroll_adjustment_rule(
+        name="INSS QA",
+        target_contract="CLT",
+        item_type="discount",
+        basis="base_salary",
+        fixed_amount=0,
+        percentage=10,
+        is_active=True,
+    )
+    repository.create_payroll_adjustment_rule(
+        name="FGTS QA",
+        target_contract="CLT",
+        item_type="employer_charge",
+        basis="base_salary",
+        fixed_amount=0,
+        percentage=8,
+        is_active=True,
+    )
+
+    period_id = repository.generate_payroll_period(period="2026-06", created_by_user_id=1)
+    summary = repository.employee_payment_summary(period_id, employee_id)
+
+    assert summary["gross_amount"] == 3000.0
+    assert summary["discount_amount"] == 300.0
+    assert summary["employer_charge_amount"] == 240.0
+    assert summary["net_amount"] == 2700.0
+
+
+def test_commissioned_statement_separates_commission_benefit_and_basis(
+    tmp_path: Path,
+) -> None:
+    repository = _prepare_database(tmp_path / "hr.db")
+    employee_id = repository.create_employee(
+        full_name="Comissionado QA",
+        document="222",
+        email="comissionado@example.invalid",
+        phone="11555555555",
+        department_id=None,
+        job_title="Representante",
+        contract_type="Representante",
+        admission_date="2026-06-01",
+        status="Ativo",
+        base_salary=0,
+        user_id=None,
+        manager_user_id=None,
+        notes="",
+        is_seller=True,
+        seller_commission_rate=5,
+    )
+    repository.create_commission_rule(
+        name="Comissão representante",
+        employee_id=employee_id,
+        profile_id=None,
+        basis="profit",
+        calculation_scope="company",
+        percentage_type="fixed",
+        fixed_percentage=10,
+        is_active=True,
+    )
+    repository.create_benefit_rule(
+        name="Ajuda de custo",
+        employee_id=employee_id,
+        profile_id=None,
+        benefit_type="fixed_monthly",
+        basis="fixed",
+        calculation_scope="individual",
+        fixed_amount=150,
+        percentage=0,
+        target_value=0,
+        is_active=True,
+    )
+
+    period_id = repository.generate_payroll_period(period="2026-06", created_by_user_id=1)
+    statement = repository.employee_payment_summary(period_id, employee_id)
+
+    assert statement["document_type"] == "Demonstrativo"
+    assert statement["commission_amount"] == 250.0
+    assert statement["benefit_amount"] == 150.0
+    assert statement["net_amount"] == 400.0
+    assert any(item["basis_amount"] == 2500.0 for item in statement["items"])

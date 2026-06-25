@@ -188,13 +188,29 @@
     </label>
     <div class="ui-table-wrapper">
       <table class="ui-table" id="users-table" data-table>
-        <thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Vendedor</th><th>Ativo</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Usuário</th><th>E-mail</th><th>Perfil legado</th><th>Perfis configuráveis</th><th>Vendedor</th><th>Ativo</th><th>Ações</th></tr></thead>
         <tbody>
           {% for account in users %}
           <tr>
             <td>{{ account.username }}</td>
             <td>{{ account.email or '-' }}</td>
             <td>{{ account.role }}</td>
+            <td>
+              <form method="post" action="/settings/users/{{ account.id }}/profiles">
+                {% for profile in access_profiles %}
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="profile_{{ profile.id }}"
+                      value="Sim"
+                      {% if profile.id in user_access_profile_ids.get(account.id, []) %}checked{% endif %}
+                    >
+                    {{ profile.name }}
+                  </label>
+                {% endfor %}
+                <button class="ui-button ui-button--ghost" type="submit">Salvar perfis</button>
+              </form>
+            </td>
             <td>{{ account.seller_name or '-' }}</td>
             <td>{{ account.active }}</td>
             <td><div class="ui-row-actions">

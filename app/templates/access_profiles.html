@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% from "components/macros.html" import page_header %}
+
+{% block title %}Perfis de acesso{% endblock %}
+
+{% block page_styles %}
+<link rel="stylesheet" href="/assets/css/administration.css?v={{ asset_version }}">
+{% endblock %}
+
+{% block page_scripts %}
+<script src="/assets/js/forms.js?v={{ asset_version }}" defer></script>
+<script src="/assets/js/tables.js?v={{ asset_version }}" defer></script>
+{% endblock %}
+
+{% block content %}
+<div class="ui-admin-stack">
+  {{ page_header('Perfis de acesso', 'Crie perfis livres e controle permissões por tela, ação e permissão especial.', 'Administração') }}
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <p class="ui-eyebrow">Novo perfil</p>
+        <h2>Criar perfil configurável</h2>
+      </div>
+    </header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/admin/access-profiles">
+      <label class="ui-field" for="profile-name">
+        <span class="ui-field__label">Nome</span>
+        <input class="ui-field__control" id="profile-name" name="name" required autocomplete="off">
+      </label>
+      <label class="ui-field" for="profile-description">
+        <span class="ui-field__label">Descrição</span>
+        <input class="ui-field__control" id="profile-description" name="description" autocomplete="off">
+      </label>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Criar perfil</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
+        <p class="ui-eyebrow">Matriz</p>
+        <h2>Permissões por perfil</h2>
+        <p>As permissões especiais controlam WhatsApp, RH, folha e dados financeiros sensíveis.</p>
+      </div>
+    </header>
+    <label class="ui-field ui-admin-search" for="access-profile-search">
+      <span class="ui-field__label">Buscar perfil ou permissão</span>
+      <input class="ui-field__control" id="access-profile-search" type="search" data-table-search="access-profile-table" autocomplete="off">
+    </label>
+    <form method="post" action="/admin/access-profiles/permissions" data-confirm="Salvar permissões de acesso?">
+      <div class="ui-table-wrapper">
+        <table class="ui-table" id="access-profile-table" data-table>
+          <thead><tr><th>Perfil</th><th>Código</th><th>Módulo</th><th>Tela</th><th>Ação</th><th>Ativo</th></tr></thead>
+          <tbody>
+          {% for row in matrix %}
+            <tr>
+              <td>{{ row.profile_name }}</td>
+              <td>{{ row.code }}</td>
+              <td>{{ row.module }}</td>
+              <td>{{ row.screen }}</td>
+              <td>{{ row.action }}</td>
+              <td>
+                <input
+                  type="checkbox"
+                  name="perm_{{ row.profile_id }}_{{ row.permission_id }}"
+                  value="Sim"
+                  aria-label="{{ row.code }} para {{ row.profile_name }}"
+                  {% if row.enabled == 'Sim' %}checked{% endif %}
+                >
+                <input type="hidden" name="scope_{{ row.profile_id }}_{{ row.permission_id }}" value="{{ row.scope or 'all' }}">
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p data-table-no-results="access-profile-table" hidden></p>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar permissões</button>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

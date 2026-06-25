@@ -24,6 +24,8 @@ from fastapi.templating import Jinja2Templates
 from jinja2 import ChoiceLoader, FileSystemLoader
 from starlette.middleware.sessions import SessionMiddleware
 
+from app.features.access_control.repository import AccessControlRepository
+from app.features.access_control.routes import create_access_control_router
 from app.features.catalog_import.service import (
     MAX_FILE_BYTES,
     SpreadsheetImportError,
@@ -358,6 +360,15 @@ def require_admin(request: Request):
     user = current_user(request)
     return bool(user and user.get("role") == "admin")
 
+
+app.include_router(
+    create_access_control_router(
+        database_path=lambda: DB_PATH,
+        render=render,
+        require_admin=require_admin,
+        current_user=current_user,
+    ),
+)
 
 app.include_router(
     create_whatsapp_router(
@@ -811,6 +822,7 @@ def init_db():
 
 def init_portal_modules():
     WhatsAppSettingsRepository(DB_PATH).init_schema()
+    AccessControlRepository(DB_PATH).ensure_seed_data()
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_likes (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,created_at TEXT,UNIQUE(post_id,user_id))""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,reaction TEXT CHECK(reaction IN ('like','dislike')),created_at TEXT,UNIQUE(post_id,user_id))""")
@@ -2467,6 +2479,20 @@ def role_email_settings_for_view():
         ORDER BY role
     """)
 
+
+def access_profiles_for_settings():
+    repo = AccessControlRepository(DB_PATH)
+    repo.ensure_seed_data()
+    return repo.profiles()
+
+
+def user_access_profile_map():
+    rows = q("SELECT user_id, profile_id FROM user_access_profiles")
+    mapping = {}
+    for row in rows:
+        mapping.setdefault(row["user_id"], set()).add(row["profile_id"])
+    return mapping
+
 @app.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
     if not require_login(request):
@@ -2482,7 +2508,14 @@ def settings(request: Request):
     """)
     sellers = q("SELECT * FROM sellers ORDER BY name")
     role_emails = role_email_settings_for_view()
-    return render(request, "settings.html", {"users": users, "sellers": sellers, "edit_user": None, "role_emails": role_emails})
+    return render(request, "settings.html", {
+        "users": users,
+        "sellers": sellers,
+        "edit_user": None,
+        "role_emails": role_emails,
+        "access_profiles": access_profiles_for_settings(),
+        "user_access_profile_ids": user_access_profile_map(),
+    })
 
 
 @app.post("/settings/save")
@@ -2522,7 +2555,9 @@ def user_edit(request: Request, user_id: int):
         "users": users,
         "sellers": sellers,
         "edit_user": edit_user,
-        "role_emails": role_emails
+        "role_emails": role_emails,
+        "access_profiles": access_profiles_for_settings(),
+        "user_access_profile_ids": user_access_profile_map(),
     })
 
 

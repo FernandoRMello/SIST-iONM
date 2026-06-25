@@ -3,6 +3,7 @@ import os
 import secrets
 from collections.abc import Callable
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
@@ -12,6 +13,7 @@ from app.features.whatsapp.repository import WhatsAppSettingsRepository
 from app.features.whatsapp.security import (
     decrypt_secret,
     encrypt_secret,
+    hash_state_token,
     hash_verify_token,
     mask_secret,
     valid_meta_signature,
@@ -48,6 +50,12 @@ def create_whatsapp_router(
         if not require_admin(request):
             return PlainTextResponse("Sem permissão", status_code=403)
         return None
+
+    def embedded_signup_redirect_uri(request: Request) -> str:
+        return os.getenv("META_EMBEDDED_SIGNUP_REDIRECT_URI") or (
+            f"{str(request.base_url).rstrip('/')}"
+            "/admin/integrations/whatsapp/embedded/callback"
+        )
 
     @router.get("/integrations/whatsapp/webhook")
     def whatsapp_webhook_verify(request: Request):
@@ -148,6 +156,56 @@ def create_whatsapp_router(
         if denied:
             return denied
         request.session["whatsapp_generated_verify_token"] = secrets.token_urlsafe(32)
+        return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
+
+    @router.post("/admin/integrations/whatsapp/embedded/start")
+    def whatsapp_embedded_signup_start(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        user = current_user(request) or {}
+        state_token = secrets.token_urlsafe(32)
+        repository().create_embedded_signup_session(
+            started_by_user_id=int(user.get("id") or 0),
+            state_token_hash=hash_state_token(state_token),
+        )
+        query = urlencode(
+            {
+                "client_id": os.getenv("META_EMBEDDED_SIGNUP_APP_ID")
+                or "not-configured",
+                "redirect_uri": embedded_signup_redirect_uri(request),
+                "state": state_token,
+                "config_id": os.getenv("META_EMBEDDED_SIGNUP_CONFIG_ID")
+                or "not-configured",
+            },
+        )
+        return RedirectResponse(
+            f"https://www.facebook.com/dialog/oauth?{query}",
+            status_code=303,
+        )
+
+    @router.get("/admin/integrations/whatsapp/embedded/callback")
+    def whatsapp_embedded_signup_callback(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        state = str(request.query_params.get("state") or "")
+        if not state:
+            return PlainTextResponse("State inválido", status_code=403)
+        state_hash = hash_state_token(state)
+        repo = repository()
+        session = repo.find_embedded_signup_session(state_hash)
+        if not session or session.get("status") != "pending":
+            return PlainTextResponse("State inválido", status_code=403)
+        provider_payload = {
+            "code": str(request.query_params.get("code") or ""),
+            "status": str(request.query_params.get("status") or ""),
+            "error": str(request.query_params.get("error") or ""),
+        }
+        repo.complete_embedded_signup_session(
+            state_token_hash=state_hash,
+            provider_payload_json=json.dumps(provider_payload),
+        )
         return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
 
     @router.post("/admin/integrations/whatsapp/departments")

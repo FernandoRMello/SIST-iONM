@@ -257,3 +257,27 @@ def test_whatsapp_wizard_test_connection_uses_meta_client_without_leaking_secret
             "SELECT last_test_status FROM whatsapp_settings WHERE id=1",
         ).fetchone()[0]
     assert status == "success"
+
+
+def test_admin_can_start_embedded_signup_without_exposing_state(
+    admin_client: TestClient,
+) -> None:
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/embedded/start",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert "state=" in response.headers["location"]
+    assert "client_id=" in response.headers["location"]
+    page = admin_client.get("/admin/integrations/whatsapp")
+    assert "state-token" not in page.text
+
+
+def test_embedded_signup_callback_rejects_unknown_state(admin_client: TestClient) -> None:
+    response = admin_client.get(
+        "/admin/integrations/whatsapp/embedded/callback",
+        params={"state": "unknown", "code": "code-123"},
+    )
+
+    assert response.status_code == 403

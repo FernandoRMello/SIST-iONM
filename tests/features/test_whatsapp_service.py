@@ -2,6 +2,7 @@ import sqlite3
 from pathlib import Path
 
 from app.features.whatsapp.repository import WhatsAppSettingsRepository
+from app.features.whatsapp.security import hash_state_token
 from app.features.whatsapp.service import (
     handle_inbound_message,
     normalize_inbound_payload,
@@ -98,3 +99,23 @@ def test_handle_inbound_message_creates_contact_conversation_and_chat(tmp_path: 
     assert contact_count == 1
     assert conversation[0] is not None
     assert "financeiro" in chat_message[0]
+
+
+def test_embedded_signup_session_is_completed_by_state_hash(tmp_path: Path) -> None:
+    repository = _prepare_database(tmp_path / "whatsapp.db")
+    state_hash = hash_state_token("state-token-123")
+
+    session_id = repository.create_embedded_signup_session(
+        started_by_user_id=1,
+        state_token_hash=state_hash,
+    )
+    completed = repository.complete_embedded_signup_session(
+        state_token_hash=state_hash,
+        provider_payload_json='{"phone_number_id":"123"}',
+    )
+    session = repository.find_embedded_signup_session(state_hash)
+
+    assert session_id > 0
+    assert completed is True
+    assert session["status"] == "completed"
+    assert "phone_number_id" in session["provider_payload_json"]

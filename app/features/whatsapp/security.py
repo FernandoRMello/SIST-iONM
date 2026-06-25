@@ -15,6 +15,10 @@ def hash_verify_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
+def hash_state_token(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
 def verify_token_matches(token: str, stored_hash: str) -> bool:
     if not token or not stored_hash:
         return False

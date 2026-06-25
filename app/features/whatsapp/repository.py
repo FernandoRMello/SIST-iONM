@@ -109,6 +109,19 @@ class WhatsAppSettingsRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS whatsapp_embedded_signup_sessions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    started_by_user_id INTEGER,
+                    state_token_hash TEXT UNIQUE,
+                    status TEXT,
+                    provider_payload_json TEXT,
+                    created_at TEXT,
+                    completed_at TEXT
+                )
+                """
+            )
             now = datetime.now().isoformat(timespec="seconds")
             for name in DEFAULT_DEPARTMENTS:
                 connection.execute(
@@ -302,6 +315,59 @@ class WhatsAppSettingsRepository:
                     (active, default_user_id, now, department_id),
                 )
             connection.commit()
+
+    def create_embedded_signup_session(
+        self,
+        *,
+        started_by_user_id: int,
+        state_token_hash: str,
+    ) -> int:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO whatsapp_embedded_signup_sessions(
+                    started_by_user_id,state_token_hash,status,provider_payload_json,created_at
+                )
+                VALUES(?,?,?,?,?)
+                """,
+                (started_by_user_id, state_token_hash, "pending", "{}", now),
+            )
+            connection.commit()
+            return int(cursor.lastrowid)
+
+    def find_embedded_signup_session(
+        self,
+        state_token_hash: str,
+    ) -> dict[str, Any] | None:
+        self.init_schema()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM whatsapp_embedded_signup_sessions WHERE state_token_hash=?",
+                (state_token_hash,),
+            ).fetchone()
+        return dict(row) if row else None
+
+    def complete_embedded_signup_session(
+        self,
+        *,
+        state_token_hash: str,
+        provider_payload_json: str,
+    ) -> bool:
+        self.init_schema()
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE whatsapp_embedded_signup_sessions
+                SET status='completed', provider_payload_json=?, completed_at=?
+                WHERE state_token_hash=? AND status='pending'
+                """,
+                (provider_payload_json, now, state_token_hash),
+            )
+            connection.commit()
+        return cursor.rowcount > 0
 
     def find_message(self, provider_message_id: str) -> dict[str, Any] | None:
         self.init_schema()

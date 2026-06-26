@@ -1,4 +1,5 @@
 import re
+import sqlite3
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -61,6 +62,46 @@ def test_finance_route_renders_only_selected_segment(admin_client: TestClient) -
     invalid = admin_client.get("/finance?segment=invalid")
     assert invalid.status_code == 200
     assert 'data-finance-panel="receivables"' in invalid.text
+
+
+def test_finance_payables_include_unpaid_payroll_items(
+    admin_client: TestClient,
+    legacy_test_state,
+) -> None:
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        now = "2026-06-26T11:00:00"
+        employee_id = connection.execute(
+            """
+            INSERT INTO hr_employees(full_name, contract_type, status, base_salary, created_at, updated_at)
+            VALUES(?,?,?,?,?,?)
+            """,
+            ("Financeiro Folha QA", "CLT", "Ativo", 0, now, now),
+        ).lastrowid
+        period_id = connection.execute(
+            """
+            INSERT INTO hr_payroll_periods(period,status,created_by_user_id,created_at)
+            VALUES(?,?,?,?)
+            """,
+            ("2026-09", "Aprovada", 1, now),
+        ).lastrowid
+        for item_type, amount in (("salary", 300), ("benefit", 90), ("discount", 40)):
+            connection.execute(
+                """
+                INSERT INTO hr_payroll_items(
+                    payroll_period_id, employee_id, item_type, description,
+                    basis_amount, percentage, amount, source_type, source_id, created_at
+                )
+                VALUES(?,?,?,?,?,?,?,?,?,?)
+                """,
+                (period_id, employee_id, item_type, f"{item_type} QA", 0, 0, amount, "qa", 1, now),
+            )
+        connection.commit()
+
+    response = admin_client.get("/finance?segment=payables")
+
+    assert response.status_code == 200
+    assert "Folha 2026-09 · Financeiro Folha QA" in response.text
+    assert "R$ 350,00" in response.text
 
 
 def test_commissions_and_reports_render_professional_sections(

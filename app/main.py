@@ -1030,7 +1030,7 @@ def opportunity_kpis(seller_id=None):
 
 def open_payables_total():
     placeholders = ",".join("?" for _ in OPEN_FINANCIAL_STATUSES)
-    return q(
+    payables_total = q(
         f"""
         SELECT COALESCE(SUM(amount),0) AS total
         FROM payables
@@ -1039,19 +1039,89 @@ def open_payables_total():
         OPEN_FINANCIAL_STATUSES,
         one=True,
     )["total"]
+    return float(payables_total or 0) + open_payroll_payables_total()
+
+
+def open_payroll_payables_total():
+    return q(
+        """
+        SELECT COALESCE(SUM(
+            CASE
+              WHEN item.item_type='discount' THEN -COALESCE(item.amount,0)
+              ELSE COALESCE(item.amount,0)
+            END
+        ),0) AS total
+        FROM hr_payroll_items item
+        JOIN hr_payroll_periods period ON period.id=item.payroll_period_id
+        WHERE COALESCE(period.status,'Rascunho') <> 'Paga'
+          AND item.item_type IN ('salary','benefit','commission','discount','employer_charge')
+        """,
+        one=True,
+    )["total"] or 0
 
 
 def recent_open_payables(limit=8):
     placeholders = ",".join("?" for _ in OPEN_FINANCIAL_STATUSES)
     return q(
         f"""
-        SELECT p.*, od.order_number, s.name AS seller_name, sp.name AS supplier_name
-        FROM payables p
-        LEFT JOIN orders od ON od.id=p.order_id
-        LEFT JOIN sellers s ON s.id=p.seller_id
-        LEFT JOIN suppliers sp ON sp.id=p.supplier_id
-        WHERE p.status IN ({placeholders})
-        ORDER BY COALESCE(p.due_date,''), p.id DESC
+        SELECT *
+        FROM (
+            SELECT
+                p.id,
+                p.order_id,
+                p.seller_id,
+                p.supplier_id,
+                p.description,
+                p.category,
+                p.amount,
+                p.issue_date,
+                p.due_date,
+                p.paid_date,
+                p.status,
+                p.payment_method,
+                p.bank_account,
+                p.notes,
+                od.order_number,
+                s.name AS seller_name,
+                sp.name AS supplier_name
+            FROM payables p
+            LEFT JOIN orders od ON od.id=p.order_id
+            LEFT JOIN sellers s ON s.id=p.seller_id
+            LEFT JOIN suppliers sp ON sp.id=p.supplier_id
+            WHERE p.status IN ({placeholders})
+            UNION ALL
+            SELECT
+                -period.id * 100000 - employee.id AS id,
+                NULL AS order_id,
+                NULL AS seller_id,
+                NULL AS supplier_id,
+                'Folha ' || period.period || ' · ' || employee.full_name AS description,
+                'Folha de pagamento' AS category,
+                SUM(
+                    CASE
+                      WHEN item.item_type='discount' THEN -COALESCE(item.amount,0)
+                      ELSE COALESCE(item.amount,0)
+                    END
+                ) AS amount,
+                period.created_at AS issue_date,
+                period.period || '-01' AS due_date,
+                NULL AS paid_date,
+                period.status AS status,
+                '' AS payment_method,
+                '' AS bank_account,
+                'Salários, benefícios, comissões, descontos e encargos gerados na folha.' AS notes,
+                NULL AS order_number,
+                employee.full_name AS seller_name,
+                NULL AS supplier_name
+            FROM hr_payroll_items item
+            JOIN hr_payroll_periods period ON period.id=item.payroll_period_id
+            JOIN hr_employees employee ON employee.id=item.employee_id
+            WHERE COALESCE(period.status,'Rascunho') <> 'Paga'
+              AND item.item_type IN ('salary','benefit','commission','discount','employer_charge')
+            GROUP BY period.id, period.period, period.status, period.created_at, employee.id, employee.full_name
+            HAVING amount <> 0
+        )
+        ORDER BY COALESCE(due_date,''), id DESC
         LIMIT ?
         """,
         (*OPEN_FINANCIAL_STATUSES, limit),
@@ -2320,16 +2390,90 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
             LIMIT ? OFFSET ?
         """, (pager["page_size"], offset))
     elif segment == "payables":
-        summary = q("SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS amount FROM payables", one=True)
+        summary = q(
+            """
+            SELECT COUNT(*) AS total, COALESCE(SUM(amount),0) AS amount
+            FROM (
+                SELECT amount FROM payables
+                UNION ALL
+                SELECT
+                    SUM(
+                        CASE
+                          WHEN item.item_type='discount' THEN -COALESCE(item.amount,0)
+                          ELSE COALESCE(item.amount,0)
+                        END
+                    ) AS amount
+                FROM hr_payroll_items item
+                JOIN hr_payroll_periods period ON period.id=item.payroll_period_id
+                JOIN hr_employees employee ON employee.id=item.employee_id
+                WHERE COALESCE(period.status,'Rascunho') <> 'Paga'
+                  AND item.item_type IN ('salary','benefit','commission','discount','employer_charge')
+                GROUP BY period.id, employee.id
+                HAVING amount <> 0
+            )
+            """,
+            one=True,
+        )
         pager = pagination_values(summary["total"], page, page_size)
         offset = (pager["page"] - 1) * pager["page_size"]
         rows = q("""
-            SELECT p.*, s.name AS seller_name, sp.name AS supplier_name, o.order_number
-            FROM payables p
-            LEFT JOIN sellers s ON s.id=p.seller_id
-            LEFT JOIN suppliers sp ON sp.id=p.supplier_id
-            LEFT JOIN orders o ON o.id=p.order_id
-            ORDER BY p.id DESC
+            SELECT *
+            FROM (
+                SELECT
+                    p.id,
+                    p.order_id,
+                    p.seller_id,
+                    p.supplier_id,
+                    p.description,
+                    p.category,
+                    p.amount,
+                    p.issue_date,
+                    p.due_date,
+                    p.paid_date,
+                    p.status,
+                    p.payment_method,
+                    p.bank_account,
+                    p.notes,
+                    s.name AS seller_name,
+                    sp.name AS supplier_name,
+                    o.order_number
+                FROM payables p
+                LEFT JOIN sellers s ON s.id=p.seller_id
+                LEFT JOIN suppliers sp ON sp.id=p.supplier_id
+                LEFT JOIN orders o ON o.id=p.order_id
+                UNION ALL
+                SELECT
+                    -period.id * 100000 - employee.id AS id,
+                    NULL AS order_id,
+                    NULL AS seller_id,
+                    NULL AS supplier_id,
+                    'Folha ' || period.period || ' · ' || employee.full_name AS description,
+                    'Folha de pagamento' AS category,
+                    SUM(
+                        CASE
+                          WHEN item.item_type='discount' THEN -COALESCE(item.amount,0)
+                          ELSE COALESCE(item.amount,0)
+                        END
+                    ) AS amount,
+                    period.created_at AS issue_date,
+                    period.period || '-01' AS due_date,
+                    NULL AS paid_date,
+                    period.status AS status,
+                    '' AS payment_method,
+                    '' AS bank_account,
+                    'Salários, benefícios, comissões, descontos e encargos gerados na folha.' AS notes,
+                    employee.full_name AS seller_name,
+                    NULL AS supplier_name,
+                    NULL AS order_number
+                FROM hr_payroll_items item
+                JOIN hr_payroll_periods period ON period.id=item.payroll_period_id
+                JOIN hr_employees employee ON employee.id=item.employee_id
+                WHERE COALESCE(period.status,'Rascunho') <> 'Paga'
+                  AND item.item_type IN ('salary','benefit','commission','discount','employer_charge')
+                GROUP BY period.id, period.period, period.status, period.created_at, employee.id, employee.full_name
+                HAVING amount <> 0
+            )
+            ORDER BY id DESC
             LIMIT ? OFFSET ?
         """, (pager["page_size"], offset))
     else:

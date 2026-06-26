@@ -11,6 +11,11 @@ TEMPLATES = REPO_ROOT / "app" / "templates"
 ERROR_TEMPLATES = REPO_ROOT / "app" / "shared" / "web" / "templates" / "errors"
 
 
+def _money_br(value: float) -> str:
+    formatted = f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"R$ {formatted}"
+
+
 def test_dashboard_uses_executive_components(admin_client: TestClient) -> None:
     response = admin_client.get("/")
 
@@ -57,17 +62,107 @@ def test_dashboard_and_bi_include_overdue_payables(
                 "Obrigação vencida deve entrar na visão gerencial",
             ),
         )
+        expected_total = connection.execute(
+            """
+            SELECT
+                (SELECT COALESCE(SUM(amount),0)
+                 FROM payables
+                 WHERE status IN ('Aberto','Vencido','Inadimplente','Agendado'))
+                +
+                (SELECT COALESCE(SUM(
+                    CASE
+                      WHEN item.item_type='discount' THEN -COALESCE(item.amount,0)
+                      ELSE COALESCE(item.amount,0)
+                    END
+                 ),0)
+                 FROM hr_payroll_items item
+                 JOIN hr_payroll_periods period ON period.id=item.payroll_period_id
+                 WHERE COALESCE(period.status,'Rascunho') <> 'Paga'
+                   AND item.item_type IN ('salary','benefit','commission','discount','employer_charge'))
+                AS total
+            """,
+        ).fetchone()[0]
         connection.commit()
 
     dashboard = admin_client.get("/")
     bi = admin_client.get("/bi-gerencial")
 
     assert dashboard.status_code == 200
-    assert "R$ 2.233,00" in dashboard.text
+    assert _money_br(expected_total) in dashboard.text
     assert bi.status_code == 200
-    assert "R$ 2.233,00" in bi.text
+    assert _money_br(expected_total) in bi.text
     assert "Compromissos a pagar" in bi.text
     assert "Conta vencida BI QA" in bi.text
+
+
+def test_dashboard_and_bi_include_unpaid_payroll_and_benefits(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+) -> None:
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        now = "2026-06-26T10:00:00"
+        employee_id = connection.execute(
+            """
+            INSERT INTO hr_employees(
+                full_name, contract_type, status, base_salary, created_at, updated_at
+            )
+            VALUES(?,?,?,?,?,?)
+            """,
+            ("Folha BI QA", "CLT", "Ativo", 0, now, now),
+        ).lastrowid
+        period_id = connection.execute(
+            """
+            INSERT INTO hr_payroll_periods(period,status,created_by_user_id,created_at)
+            VALUES(?,?,?,?)
+            """,
+            ("2026-08", "Aprovada", 1, now),
+        ).lastrowid
+        for item_type, description, amount in (
+            ("salary", "Salário Folha BI QA", 400),
+            ("benefit", "Benefício Folha BI QA", 100),
+            ("discount", "Desconto Folha BI QA", 50),
+            ("employer_charge", "Encargo Folha BI QA", 80),
+        ):
+            connection.execute(
+                """
+                INSERT INTO hr_payroll_items(
+                    payroll_period_id, employee_id, item_type, description,
+                    basis_amount, percentage, amount, source_type, source_id, created_at
+                )
+                VALUES(?,?,?,?,?,?,?,?,?,?)
+                """,
+                (period_id, employee_id, item_type, description, 0, 0, amount, "qa", 1, now),
+            )
+        expected_total = connection.execute(
+            """
+            SELECT
+                (SELECT COALESCE(SUM(amount),0)
+                 FROM payables
+                 WHERE status IN ('Aberto','Vencido','Inadimplente','Agendado'))
+                +
+                (SELECT COALESCE(SUM(
+                    CASE
+                      WHEN item.item_type='discount' THEN -COALESCE(item.amount,0)
+                      ELSE COALESCE(item.amount,0)
+                    END
+                 ),0)
+                 FROM hr_payroll_items item
+                 JOIN hr_payroll_periods period ON period.id=item.payroll_period_id
+                 WHERE COALESCE(period.status,'Rascunho') <> 'Paga'
+                   AND item.item_type IN ('salary','benefit','commission','discount','employer_charge'))
+                AS total
+            """,
+        ).fetchone()[0]
+        connection.commit()
+
+    dashboard = admin_client.get("/")
+    bi = admin_client.get("/bi-gerencial")
+
+    assert dashboard.status_code == 200
+    assert _money_br(expected_total) in dashboard.text
+    assert bi.status_code == 200
+    assert _money_br(expected_total) in bi.text
+    assert "Folha 2026-08 · Folha BI QA" in bi.text
 
 
 def test_login_is_labelled_local_and_password_toggle_is_accessible(

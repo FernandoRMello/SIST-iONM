@@ -33,6 +33,8 @@ from app.features.catalog_import.service import (
     import_rows,
     parse_workbook,
 )
+from app.features.database_admin.repository import DatabaseSettingsRepository
+from app.features.database_admin.routes import create_database_admin_router
 from app.features.hr.repository import HRRepository
 from app.features.hr.routes import create_hr_router
 from app.features.profile_avatar.service import AvatarValidationError, process_avatar
@@ -386,6 +388,14 @@ app.include_router(
     create_whatsapp_router(
         database_path=lambda: DB_PATH,
         render=render,
+        require_admin=require_admin,
+        current_user=current_user,
+    ),
+)
+
+app.include_router(
+    create_database_admin_router(
+        database_path=lambda: DB_PATH,
         require_admin=require_admin,
         current_user=current_user,
     ),
@@ -834,6 +844,7 @@ def init_db():
 
 def init_portal_modules():
     WhatsAppSettingsRepository(DB_PATH).init_schema()
+    DatabaseSettingsRepository(DB_PATH).init_schema()
     AccessControlRepository(DB_PATH).ensure_seed_data()
     HRRepository(DB_PATH).init_schema()
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
@@ -2550,6 +2561,16 @@ def user_access_profile_map():
         mapping.setdefault(row["user_id"], set()).add(row["profile_id"])
     return mapping
 
+
+def database_admin_context():
+    repo = DatabaseSettingsRepository(DB_PATH)
+    repo.init_schema()
+    return {
+        "current_engine": "SQLite local",
+        "current_database_path": str(DB_PATH),
+        "config": repo.get_config_for_view(),
+    }
+
 @app.get("/settings", response_class=HTMLResponse)
 def settings(request: Request):
     if not require_login(request):
@@ -2572,6 +2593,7 @@ def settings(request: Request):
         "role_emails": role_emails,
         "access_profiles": access_profiles_for_settings(),
         "user_access_profile_ids": user_access_profile_map(),
+        "database_admin": database_admin_context(),
     })
 
 
@@ -2615,6 +2637,7 @@ def user_edit(request: Request, user_id: int):
         "role_emails": role_emails,
         "access_profiles": access_profiles_for_settings(),
         "user_access_profile_ids": user_access_profile_map(),
+        "database_admin": database_admin_context(),
     })
 
 

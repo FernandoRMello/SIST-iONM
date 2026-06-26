@@ -7,6 +7,7 @@ app/main.py                         aplicação legada, rotas e regras ainda mon
 app/features/catalog_import/       importação Excel de clientes e fornecedores
 app/features/access_control/       perfis configuráveis, permissões especiais e atribuição a usuários
 app/features/hr/                   colaboradores, vendedores vinculados, regras e folha mensal
+app/features/database_admin/       configuração, teste e preparo de banco PostgreSQL
 app/templates/                      templates originais + WhatsApp + Perfis + RH
 app/shared/web/templates/layouts/   shell principal
 app/shared/web/templates/components macros Jinja
@@ -37,7 +38,7 @@ tests/performance/                   budgets de consulta, paginação e cache
 | `profile.html` | `/profile`, save/avatar | `profile`, `departments` | `portal.css` | portal |
 | `orgchart.html` | `/orgchart` | `departments`, `people` | `portal.css` | portal |
 | `crud.html` | `/cadastros/{table}`, edit/save/delete e importação | `table`, `meta`, `rows`, `edit`, `pager`, `import_feedback` | `administration.css`, forms/tables | administração + paginação/importação |
-| `settings.html` | `/settings` e usuários/e-mail/backup | `users`, `sellers`, `edit_user`, `role_emails` | `administration.css`, forms/tables | administração |
+| `settings.html` | `/settings` e usuários/e-mail/banco/backup | `users`, `sellers`, `edit_user`, `role_emails`, `database_admin` | `administration.css`, forms/tables | administração |
 | `permissions.html` | `/admin/permissions` | `rows` | `administration.css`, forms/tables | administração |
 | `opportunities.html` | `/opportunities`, create/move | `opps`, `kanban`, `statuses`, cadastros, `pager` | `crm.css`, `forms.js` | `test_crm_pages.py` + budget |
 | `opportunity_card.html` | `/opportunities/{id}/card` e ações | `o`, `comments`, `notes`, `docs`, `products` | `crm.css` | CRM |
@@ -99,6 +100,21 @@ O Embedded Signup oficial usa `POST /admin/integrations/whatsapp/embedded/start`
 As regras ficam em `whatsapp_automation_rules`. A engine aceita palavra-chave, encaminhamento humano, resposta fixa, consulta segura de faturas e consulta segura de pedidos. Faturas vêm de `receivables.client_id`; pedidos vêm de `orders.client_id` quando existir ou de `orders → opportunities.client_id` no schema legado. O limite de resposta é 5 linhas.
 
 QR/short links oficiais ficam em `whatsapp_qr_codes` e são criados por `MetaWhatsAppClient.create_qr_code()`. Não existe conexão de WhatsApp Web por QR como dispositivo de produção neste módulo.
+
+## Administração de banco de dados
+
+| Arquivo | Responsabilidade |
+|---|---|
+| `app/features/database_admin/security.py` | criptografia/descriptografia da senha PostgreSQL e status seguro da senha |
+| `app/features/database_admin/repository.py` | tabela `database_connections`, gravação da configuração e histórico de teste/preparo |
+| `app/features/database_admin/service.py` | parâmetros seguros de conexão PostgreSQL, teste `SELECT 1` e preparo de `sist_ionm_schema_status` |
+| `app/features/database_admin/routes.py` | rotas administrativas `/settings/database/save`, `/settings/database/test` e `/settings/database/prepare` |
+| `app/templates/settings.html` | seção “Banco de dados” dentro de Configurações |
+| `tests/features/test_database_admin_repository.py` | contratos de senha, persistência e status |
+| `tests/features/test_database_admin_service.py` | contratos de teste/preparo PostgreSQL com conector fake |
+| `tests/web/test_database_admin_settings.py` | contratos HTTP, permissão e não renderização de senha |
+
+A configuração de PostgreSQL ainda não troca o runtime principal. Ela valida e prepara o destino; o cutover completo depende de migração SQLite → PostgreSQL e reinício do servidor.
 
 ## Perfis de acesso configuráveis
 

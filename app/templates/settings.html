@@ -262,6 +262,67 @@
   <section class="ui-card ui-admin-section">
     <header class="ui-admin-section__header">
       <div>
+        <h2>Banco de dados</h2>
+        <p>Configure um destino PostgreSQL para implantação, backup profissional e futuro cutover.</p>
+      </div>
+      <span class="ui-status-pill">{{ database_admin.config.status }}</span>
+    </header>
+
+    <div class="ui-alert ui-alert--info">
+      Banco atual: <strong>{{ database_admin.current_engine }}</strong>
+      <span class="ui-muted">({{ database_admin.current_database_path }})</span>.
+      A ativação de um novo banco exige reinício do servidor local para evitar conexões abertas no banco anterior.
+    </div>
+
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/settings/database/save">
+      <label class="ui-field" for="db-name"><span class="ui-field__label">Nome da conexão</span><input class="ui-field__control" id="db-name" name="name" value="{{ database_admin.config.name or '' }}" placeholder="PostgreSQL Produção"></label>
+      <label class="ui-field" for="db-engine"><span class="ui-field__label">Motor</span><input class="ui-field__control" id="db-engine" name="engine" value="PostgreSQL" readonly></label>
+      <label class="ui-field" for="db-host"><span class="ui-field__label">Servidor/Host</span><input class="ui-field__control" id="db-host" name="host" value="{{ database_admin.config.host or '' }}" placeholder="127.0.0.1"></label>
+      <label class="ui-field" for="db-port"><span class="ui-field__label">Porta</span><input class="ui-field__control" id="db-port" name="port" inputmode="numeric" value="{{ database_admin.config.port or 5432 }}"></label>
+      <label class="ui-field" for="db-name-target"><span class="ui-field__label">Nome do banco</span><input class="ui-field__control" id="db-name-target" name="database_name" value="{{ database_admin.config.database_name or '' }}" placeholder="sist_ionm"></label>
+      <label class="ui-field" for="db-username"><span class="ui-field__label">Usuário</span><input class="ui-field__control" id="db-username" name="username" value="{{ database_admin.config.username or '' }}" autocomplete="off"></label>
+      <label class="ui-field" for="db-password"><span class="ui-field__label">Senha</span><input class="ui-field__control" id="db-password" name="password" type="password" autocomplete="new-password" placeholder="{{ database_admin.config.password_status }} — deixe vazio para manter"></label>
+      <label class="ui-field" for="db-ssl-mode"><span class="ui-field__label">SSL mode</span><select class="ui-field__control" id="db-ssl-mode" name="ssl_mode">{% for mode in ['prefer','require','disable'] %}<option value="{{ mode }}"{% if database_admin.config.ssl_mode == mode %} selected{% endif %}>{{ mode }}</option>{% endfor %}</select></label>
+      <label class="ui-field ui-admin-form__full" for="db-notes"><span class="ui-field__label">Observações operacionais</span><input class="ui-field__control" id="db-notes" name="notes" value="{{ database_admin.config.notes or '' }}" placeholder="Servidor Ubuntu local, banco preparado pelo DBA, etc."></label>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">Salvar configuração</button>
+      </div>
+    </form>
+
+    <div class="ui-row-actions">
+      <form method="post" action="/settings/database/test">
+        <button class="ui-button ui-button--secondary" type="submit">Testar conexão</button>
+      </form>
+      <form method="post" action="/settings/database/prepare" data-confirm="Preparar ambiente criará a tabela de controle no PostgreSQL configurado. Continuar?">
+        <button class="ui-button ui-button--secondary" type="submit">Preparar ambiente</button>
+      </form>
+    </div>
+
+    <div class="ui-table-wrapper">
+      <table class="ui-table">
+        <thead><tr><th>Verificação</th><th>Status</th><th>Mensagem</th><th>Data</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Último teste</td>
+            <td>{{ database_admin.config.last_test_status or '-' }}</td>
+            <td>{{ database_admin.config.last_test_message or 'Nenhum teste executado.' }}</td>
+            <td>{{ database_admin.config.last_test_at or '-' }}</td>
+          </tr>
+          <tr>
+            <td>Último preparo</td>
+            <td>{{ database_admin.config.last_prepare_status or '-' }}</td>
+            <td>{{ database_admin.config.last_prepare_message or 'Ambiente ainda não preparado.' }}</td>
+            <td>{{ database_admin.config.last_prepare_at or '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="ui-muted">Preparar ambiente cria somente a estrutura mínima de controle no PostgreSQL. Migração de dados SQLite → PostgreSQL será uma etapa posterior.</p>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
+      <div>
         <h2>Backup e restauração</h2>
         <p>Exporte uma cópia ou restaure um banco SQLite autorizado.</p>
       </div>

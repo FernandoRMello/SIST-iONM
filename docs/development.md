@@ -184,6 +184,22 @@ Ao criar usuário a partir de um colaborador-vendedor, o `seller_id` é herdado 
 
 O cadastro de colaborador usa lista controlada para cargo e tipo de contrato. Se surgir um cargo recorrente novo, inclua-o em `JOB_TITLES` no módulo de rotas de RH ou evolua para cadastro próprio de cargos/departamentos em uma etapa separada.
 
+## Banco de dados em Configurações
+
+A tela **Configurações → Banco de dados** permite cadastrar um destino PostgreSQL para implantação profissional em servidor local/Linux Ubuntu.
+
+Fluxo recomendado:
+
+1. Mantenha o SQLite atual como banco local/legado durante a configuração.
+2. Preencha host, porta, banco, usuário, senha e SSL mode do PostgreSQL.
+3. Clique em **Salvar configuração**.
+4. Clique em **Testar conexão** para validar acesso e credenciais.
+5. Clique em **Preparar ambiente** para criar/verificar a tabela mínima `sist_ionm_schema_status` no PostgreSQL.
+
+A senha do banco é criptografada em repouso e nunca é renderizada na página. Ao editar a configuração, deixe o campo de senha vazio para preservar a senha já cadastrada.
+
+Importante: esta etapa prepara o destino PostgreSQL para migração/cutover futuro, mas o runtime principal ainda usa o SQLite definido por `DB_PATH` em `app/main.py`. A ativação completa do PostgreSQL e a migração dos dados SQLite → PostgreSQL são uma etapa posterior e exigem reinício do servidor para evitar conexões abertas no banco anterior.
+
 ## Importação por Excel
 
 Nas telas **Clientes** e **Fornecedores**, baixe primeiro o modelo oficial e envie somente arquivos `.xlsx`. Nome e CPF/CNPJ são obrigatórios; o documento identifica se o registro deve ser criado ou atualizado.

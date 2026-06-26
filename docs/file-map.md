@@ -65,6 +65,8 @@ tests/performance/                   budgets de consulta, paginação e cache
 - Em RH, `job_title` é select com cargos comuns para reduzir variação textual. O campo continua postando `job_title` para preservar compatibilidade.
 - Em RH, `contract_type` é select baseado em tipos aceitos pelo módulo de folha e demonstrativos.
 - Em Financeiro → Custos, o favorecido agora pode vir de `suppliers` ou `sellers`. O schema atual ainda grava o nome final em `costs.vendor`, evitando migração nesta etapa; o formulário mantém `vendor` como fallback manual.
+- Em Financeiro → Custos, as subabas `Lançamentos variáveis`, `Custos fixos recorrentes` e `Categorias` separam os registros avulsos dos cadastros-matriz. `app/features/finance/calendar.py` calcula dias úteis; `recurring_costs.py` cria as tabelas e gera competências idempotentes; `routes.py` mantém categorias, feriados e recorrências.
+- Custos recorrentes geram registros em `payables` e `recurring_cost_occurrences`. A chave única por custo e competência evita duplicidade, competências perdidas durante indisponibilidade são recompostas e valores já gerados permanecem imutáveis.
 - Campos livres continuam permitidos apenas quando não há cadastro relacionado ou quando o texto realmente é descritivo, como observações, documento e descrição.
 
 ## Navegação persistente do shell

@@ -31,12 +31,18 @@
     <div class="ui-finance-summary">{{ stat_card('Total a pagar', money(total), 'money', 'warning', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
     <div class="ui-card ui-finance-section">
       <header><h2>Contas a pagar</h2><p>Obrigações com vendedores e fornecedores.</p></header>
-      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Vendedor / fornecedor</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for payable in rows %}<tr><td>{{ payable.order_number or '-' }}</td><td>{{ payable.description }}</td><td>{{ payable.seller_name or payable.supplier_name or '-' }}</td><td>{{ payable.due_date or '-' }}</td><td class="money-sensitive">{{ money(payable.amount) }}</td><td>{{ status_badge(payable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a pagar', 'As obrigações geradas aparecerão nesta lista.', 'money') }}{% endif %}
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Vendedor / fornecedor</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody>{% for payable in rows %}<tr><td>{{ payable.order_number or '-' }}</td><td>{{ payable.description }}{% if payable.recurring_period %}<small class="ui-origin-label">Custo fixo · {{ payable.recurring_period }}</small>{% endif %}</td><td>{{ payable.seller_name or payable.supplier_name or '-' }}</td><td>{{ payable.due_date or '-' }}</td><td class="money-sensitive">{{ money(payable.amount) }}</td><td>{{ status_badge(payable.status, 'neutral') }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhuma conta a pagar', 'As obrigações geradas aparecerão nesta lista.', 'money') }}{% endif %}
     </div>
   </section>
   {% else %}
   <section class="ui-finance-panel" data-finance-panel="costs">
     <div class="ui-finance-summary">{{ stat_card('Total de custos', money(total), 'purchases', 'warning', rows|length ~ ' lançamento(s)', sensitive=true) }}</div>
+    <nav class="ui-finance-subtabs" aria-label="Tipos de custos">
+      <a href="/finance?segment=costs&cost_tab=variable" {% if cost_tab == 'variable' %}aria-current="page"{% endif %}>Lançamentos variáveis</a>
+      <a href="/finance?segment=costs&cost_tab=recurring" {% if cost_tab == 'recurring' %}aria-current="page"{% endif %}>Custos fixos recorrentes</a>
+      <a href="/finance?segment=costs&cost_tab=categories" {% if cost_tab == 'categories' %}aria-current="page"{% endif %}>Categorias</a>
+    </nav>
+    {% if cost_tab == 'variable' %}
     <div class="ui-card ui-finance-section">
       <header><h2>Novo custo</h2><p>Registre uma despesa operacional vinculada ou não a um pedido.</p></header>
       <form class="ui-finance-form" method="post" action="/finance/costs/add">
@@ -58,10 +64,83 @@
     </div>
     <div class="ui-card ui-finance-section">
       <header><h2>Custos</h2><p>Despesas operacionais registradas.</p></header>
-      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Fornecedor</th><th>Valor</th><th>Data</th></tr></thead><tbody>{% for cost in rows %}<tr><td>{{ cost.order_number or '-' }}</td><td>{{ cost.description }}</td><td>{{ cost.category }}</td><td>{{ cost.cost_center }}</td><td>{{ cost.vendor or '-' }}</td><td class="money-sensitive">{{ money(cost.amount) }}</td><td>{{ cost.date }}</td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhum custo', 'Adicione o primeiro custo usando o formulário acima.', 'purchases') }}{% endif %}
+      {% if rows %}<div class="ui-table-wrapper"><table class="ui-table" id="finance-table"><thead><tr><th>Pedido</th><th>Descrição</th><th>Categoria</th><th>Centro</th><th>Fornecedor</th><th>Valor</th><th>Data</th><th>Ações</th></tr></thead><tbody>{% for cost in rows %}<tr><td>{{ cost.order_number or '-' }}</td><td>{{ cost.description }}</td><td>{{ cost.category }}</td><td>{{ cost.cost_center }}</td><td>{{ cost.vendor or '-' }}</td><td class="money-sensitive">{{ money(cost.amount) }}</td><td>{{ cost.date }}</td><td><form method="post" action="/finance/costs/{{ cost.id }}/delete" data-confirm="Excluir este lançamento de custo?"><button class="ui-button ui-button--danger ui-button--small" type="submit">Excluir</button></form></td></tr>{% endfor %}</tbody></table></div>{% else %}{{ empty_state('Nenhum custo', 'Adicione o primeiro custo usando o formulário acima.', 'purchases') }}{% endif %}
     </div>
+    {% elif cost_tab == 'recurring' %}
+    <div class="ui-card ui-finance-section">
+      <header><h2>Novo custo fixo</h2><p>O sistema gerará uma conta mensal automaticamente, sem duplicar competências.</p></header>
+      <form class="ui-finance-form" method="post" action="/finance/recurring-costs/add">
+        <label class="ui-field" for="recurring-description"><span class="ui-field__label">Descrição</span><input class="ui-field__control" id="recurring-description" name="description" required></label>
+        <label class="ui-field" for="recurring-category"><span class="ui-field__label">Categoria</span><select class="ui-field__control" id="recurring-category" name="category_id" required><option value="">Selecione</option>{% for category in category_rows if category.deleted_at is none %}<option value="{{ category.id }}">{{ category.name }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="recurring-center"><span class="ui-field__label">Centro de custo</span><select class="ui-field__control" id="recurring-center" name="cost_center">{% for center in cost_centers %}<option>{{ center }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="recurring-amount"><span class="ui-field__label">Valor mensal</span><input class="ui-field__control" id="recurring-amount" name="amount" inputmode="decimal" required></label>
+        <label class="ui-field" for="recurring-due-day"><span class="ui-field__label">Dia do vencimento</span><input class="ui-field__control" id="recurring-due-day" name="due_day" type="number" min="1" max="31" required></label>
+        <label class="ui-field" for="recurring-start"><span class="ui-field__label">Início da vigência</span><input class="ui-field__control" id="recurring-start" name="start_date" type="date" required></label>
+        <label class="ui-field" for="recurring-end"><span class="ui-field__label">Fim da vigência (opcional)</span><input class="ui-field__control" id="recurring-end" name="end_date" type="date"></label>
+        <label class="ui-field" for="recurring-party-type"><span class="ui-field__label">Tipo de favorecido</span><select class="ui-field__control" id="recurring-party-type" name="party_type"><option value="">Manual</option><option value="supplier">Fornecedor</option><option value="seller">Vendedor</option></select></label>
+        <label class="ui-field" for="recurring-supplier"><span class="ui-field__label">Fornecedor</span><select class="ui-field__control" id="recurring-supplier" name="supplier_id"><option value="">Selecione</option>{% for supplier in suppliers %}<option value="{{ supplier.id }}">{{ supplier.name }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="recurring-seller"><span class="ui-field__label">Vendedor</span><select class="ui-field__control" id="recurring-seller" name="seller_id"><option value="">Selecione</option>{% for seller in sellers %}<option value="{{ seller.id }}">{{ seller.name }}</option>{% endfor %}</select></label>
+        <label class="ui-field" for="recurring-vendor"><span class="ui-field__label">Favorecido manual</span><input class="ui-field__control" id="recurring-vendor" name="vendor"></label>
+        <label class="ui-field" for="recurring-payment"><span class="ui-field__label">Forma de pagamento</span><select class="ui-field__control" id="recurring-payment" name="payment_method"><option>Boleto</option><option>PIX</option><option>Transferência</option><option>Débito automático</option><option>Cartão</option><option>Outro</option></select></label>
+        <label class="ui-field" for="recurring-account"><span class="ui-field__label">Conta bancária</span><input class="ui-field__control" id="recurring-account" name="bank_account"></label>
+        <label class="ui-field ui-finance-form__full" for="recurring-notes"><span class="ui-field__label">Observações</span><textarea class="ui-field__control" id="recurring-notes" name="notes" rows="2"></textarea></label>
+        <div class="ui-finance-form__actions"><button class="ui-button ui-button--primary" type="submit">Criar custo fixo</button></div>
+      </form>
+    </div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Custos fixos cadastrados</h2><p>Edite valores futuros, pause temporariamente ou exclua a recorrência.</p></header>
+      {% if recurring_costs %}
+      <div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Descrição</th><th>Categoria</th><th>Favorecido</th><th>Valor</th><th>Vencimento</th><th>Vigência</th><th>Status</th><th>Ações</th></tr></thead><tbody>
+      {% for cost in recurring_costs %}<tr>
+        <td>{{ cost.description }}</td><td>{{ cost.category_name }}</td><td>{{ cost.supplier_name or cost.seller_name or cost.vendor or '-' }}</td>
+        <td class="money-sensitive">{{ money(cost.amount) }}</td><td>Dia {{ cost.due_day }}</td><td>{{ cost.start_date }}{% if cost.end_date %} a {{ cost.end_date }}{% endif %}</td><td>{{ status_badge(cost.status, 'neutral') }}</td>
+        <td><div class="ui-row-actions">
+          {% if cost.deleted_at is none %}<details class="ui-edit-popover"><summary class="ui-button ui-button--secondary ui-button--small">Editar</summary><form class="ui-finance-form ui-edit-popover__form" method="post" action="/finance/recurring-costs/{{ cost.id }}/edit">
+            <label class="ui-field"><span class="ui-field__label">Descrição</span><input class="ui-field__control" name="description" value="{{ cost.description }}" required></label>
+            <label class="ui-field"><span class="ui-field__label">Categoria</span><select class="ui-field__control" name="category_id">{% for category in category_rows if category.deleted_at is none %}<option value="{{ category.id }}" {% if category.id == cost.category_id %}selected{% endif %}>{{ category.name }}</option>{% endfor %}</select></label>
+            <label class="ui-field"><span class="ui-field__label">Centro</span><select class="ui-field__control" name="cost_center">{% for center in cost_centers %}<option {% if center == cost.cost_center %}selected{% endif %}>{{ center }}</option>{% endfor %}</select></label>
+            <label class="ui-field"><span class="ui-field__label">Valor</span><input class="ui-field__control" name="amount" value="{{ cost.amount }}" required></label>
+            <label class="ui-field"><span class="ui-field__label">Dia</span><input class="ui-field__control" name="due_day" type="number" min="1" max="31" value="{{ cost.due_day }}" required></label>
+            <label class="ui-field"><span class="ui-field__label">Início</span><input class="ui-field__control" name="start_date" type="date" value="{{ cost.start_date }}" required></label>
+            <label class="ui-field"><span class="ui-field__label">Fim</span><input class="ui-field__control" name="end_date" type="date" value="{{ cost.end_date or '' }}"></label>
+            <label class="ui-field"><span class="ui-field__label">Pagamento</span><input class="ui-field__control" name="payment_method" value="{{ cost.payment_method or '' }}"></label>
+            <label class="ui-field"><span class="ui-field__label">Conta</span><input class="ui-field__control" name="bank_account" value="{{ cost.bank_account or '' }}"></label>
+            <label class="ui-field ui-finance-form__full"><span class="ui-field__label">Observações</span><textarea class="ui-field__control" name="notes">{{ cost.notes or '' }}</textarea></label>
+            <div class="ui-finance-form__actions"><button class="ui-button ui-button--primary ui-button--small" type="submit">Salvar alterações</button></div>
+          </form></details>{% endif %}
+          {% if cost.deleted_at is none %}<form method="post" action="/finance/recurring-costs/{{ cost.id }}/status"><input type="hidden" name="status" value="{% if cost.status == 'Ativo' %}Pausado{% else %}Ativo{% endif %}"><button class="ui-button ui-button--secondary ui-button--small" type="submit">{% if cost.status == 'Ativo' %}Pausar{% else %}Reativar{% endif %}</button></form>{% endif %}
+          <form method="post" action="/finance/recurring-costs/{{ cost.id }}/delete" data-confirm="Excluir este custo fixo? O histórico já gerado será preservado."><button class="ui-button ui-button--danger ui-button--small" type="submit">Excluir</button></form>
+        </div></td>
+      </tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}{{ empty_state('Nenhum custo fixo', 'Cadastre o primeiro compromisso recorrente acima.', 'purchases') }}{% endif %}
+    </div>
+    {% else %}
+    <div class="ui-card ui-finance-section">
+      <header><h2>Nova categoria</h2><p>Organize custos fixos e variáveis por uma classificação padronizada.</p></header>
+      <form class="ui-inline-form" method="post" action="/finance/cost-categories/add">
+        <label class="ui-field" for="category-name"><span class="ui-field__label">Nome da categoria</span><input class="ui-field__control" id="category-name" name="name" required></label>
+        <button class="ui-button ui-button--primary" type="submit">Criar categoria</button>
+      </form>
+    </div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Categorias de custos</h2><p>Categorias utilizadas são desativadas ao excluir para preservar o histórico.</p></header>
+      {% if category_rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Categoria</th><th>Status</th><th>Utilizações</th><th>Ações</th></tr></thead><tbody>
+      {% for category in category_rows %}<tr><td><form class="ui-inline-form" method="post" action="/finance/cost-categories/{{ category.id }}/edit"><input class="ui-field__control" name="name" value="{{ category.name }}" {% if category.deleted_at %}disabled{% endif %}><button class="ui-button ui-button--secondary ui-button--small" type="submit" {% if category.deleted_at %}disabled{% endif %}>Salvar</button></form></td><td>{% if category.deleted_at %}Inativa{% else %}Ativa{% endif %}</td><td>{{ category.usage_count }}</td><td><form method="post" action="/finance/cost-categories/{{ category.id }}/delete" data-confirm="Excluir esta categoria? Se estiver em uso, ela será apenas desativada."><button class="ui-button ui-button--danger ui-button--small" type="submit" {% if category.deleted_at %}disabled{% endif %}>Excluir</button></form></td></tr>{% endfor %}
+      </tbody></table></div>{% else %}{{ empty_state('Nenhuma categoria', 'Crie a primeira categoria acima.', 'purchases') }}{% endif %}
+    </div>
+    <div class="ui-card ui-finance-section">
+      <header><h2>Calendário de feriados</h2><p>Vencimentos nessas datas serão movidos para o próximo dia útil.</p></header>
+      <form class="ui-inline-form" method="post" action="/finance/business-holidays/add">
+        <label class="ui-field" for="holiday-date"><span class="ui-field__label">Data</span><input class="ui-field__control" id="holiday-date" name="holiday_date" type="date" required></label>
+        <label class="ui-field" for="holiday-description"><span class="ui-field__label">Descrição</span><input class="ui-field__control" id="holiday-description" name="description" required></label>
+        <button class="ui-button ui-button--primary" type="submit">Adicionar feriado</button>
+      </form>
+      {% if holiday_rows %}<div class="ui-table-wrapper"><table class="ui-table"><thead><tr><th>Data</th><th>Descrição</th><th>Ações</th></tr></thead><tbody>{% for holiday in holiday_rows %}<tr><td>{{ holiday.holiday_date }}</td><td>{{ holiday.description }}</td><td><form method="post" action="/finance/business-holidays/{{ holiday.id }}/delete" data-confirm="Excluir este feriado?"><button class="ui-button ui-button--danger ui-button--small" type="submit">Excluir</button></form></td></tr>{% endfor %}</tbody></table></div>{% endif %}
+    </div>
+    {% endif %}
   </section>
   {% endif %}
-  {{ pagination(pager.page, pager.pages, '/finance?segment=' ~ segment ~ '&page_size=' ~ pager.page_size) }}
+  {% if segment != 'costs' or cost_tab == 'variable' %}{{ pagination(pager.page, pager.pages, '/finance?segment=' ~ segment ~ '&page_size=' ~ pager.page_size) }}{% endif %}
 </div>
 {% endblock %}

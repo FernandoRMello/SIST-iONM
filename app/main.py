@@ -35,6 +35,11 @@ from app.features.catalog_import.service import (
 )
 from app.features.database_admin.repository import DatabaseSettingsRepository
 from app.features.database_admin.routes import create_database_admin_router
+from app.features.finance.recurring_costs import (
+    ensure_recurring_cost_schema,
+    generate_due_recurring_costs,
+)
+from app.features.finance.routes import create_finance_router
 from app.features.hr.repository import HRRepository
 from app.features.hr.routes import create_hr_router
 from app.features.profile_avatar.service import AvatarValidationError, process_avatar
@@ -397,6 +402,13 @@ app.include_router(
     create_database_admin_router(
         database_path=lambda: DB_PATH,
         require_admin=require_admin,
+        current_user=current_user,
+    ),
+)
+
+app.include_router(
+    create_finance_router(
+        database_path=lambda: DB_PATH,
         current_user=current_user,
     ),
 )
@@ -847,6 +859,18 @@ def init_portal_modules():
     DatabaseSettingsRepository(DB_PATH).init_schema()
     AccessControlRepository(DB_PATH).ensure_seed_data()
     HRRepository(DB_PATH).init_schema()
+    with db() as connection:
+        ensure_recurring_cost_schema(connection)
+        now = datetime.now().isoformat(timespec="seconds")
+        for category in COST_CATEGORIES:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO cost_categories(name,active,created_at,updated_at)
+                VALUES(?,?,?,?)
+                """,
+                (category, "Sim", now, now),
+            )
+        connection.commit()
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_posts (id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,content TEXT,attachment_path TEXT,created_at TEXT)""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_likes (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,created_at TEXT,UNIQUE(post_id,user_id))""")
     exec_sql("""CREATE TABLE IF NOT EXISTS feed_reactions (id INTEGER PRIMARY KEY AUTOINCREMENT,post_id INTEGER,user_id INTEGER,reaction TEXT CHECK(reaction IN ('like','dislike')),created_at TEXT,UNIQUE(post_id,user_id))""")
@@ -1438,6 +1462,8 @@ def create_financial_entries(order_id, form):
 def startup():
     init_db()
     init_portal_modules()
+    with db() as connection:
+        generate_due_recurring_costs(connection, date.today(), None)
 
 
 @app.get("/favicon.ico")
@@ -2367,7 +2393,13 @@ def commissions(request: Request):
 # ---------------- Fiscal / Financeiro ----------------
 
 @app.get("/finance", response_class=HTMLResponse)
-def finance(request: Request, segment: str = "receivables", page: int = 1, page_size: int = 25):
+def finance(
+    request: Request,
+    segment: str = "receivables",
+    cost_tab: str = "variable",
+    page: int = 1,
+    page_size: int = 25,
+):
     if not require_login(request):
         return redirect_login()
     if current_user(request).get("role") not in ["admin", "financeiro"]:
@@ -2375,6 +2407,20 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
 
     if segment not in {"receivables", "payables", "costs"}:
         segment = "receivables"
+    if cost_tab not in {"variable", "recurring", "categories"}:
+        cost_tab = "variable"
+
+    last_run = q(
+        "SELECT run_date FROM recurring_cost_runs ORDER BY id DESC LIMIT 1",
+        one=True,
+    )
+    if not last_run or last_run["run_date"] != today():
+        with db() as connection:
+            generate_due_recurring_costs(
+                connection,
+                date.today(),
+                current_user(request).get("id"),
+            )
 
     rows = []
     if segment == "receivables":
@@ -2434,6 +2480,7 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
                     p.payment_method,
                     p.bank_account,
                     p.notes,
+                    p.recurring_period,
                     s.name AS seller_name,
                     sp.name AS supplier_name,
                     o.order_number
@@ -2462,6 +2509,7 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
                     '' AS payment_method,
                     '' AS bank_account,
                     'Salários, benefícios, comissões, descontos e encargos gerados na folha.' AS notes,
+                    NULL AS recurring_period,
                     employee.full_name AS seller_name,
                     NULL AS supplier_name,
                     NULL AS order_number
@@ -2491,16 +2539,55 @@ def finance(request: Request, segment: str = "receivables", page: int = 1, page_
     orders_list = q("SELECT * FROM orders ORDER BY id DESC") if segment == "costs" else []
     suppliers_list = q("SELECT id,name FROM suppliers ORDER BY name") if segment == "costs" else []
     sellers_list = q("SELECT id,name FROM sellers WHERE active='Sim' ORDER BY name") if segment == "costs" else []
+    recurring_costs = []
+    category_rows = []
+    holiday_rows = []
+    if segment == "costs":
+        category_rows = q(
+            """
+            SELECT cc.*,
+                   (SELECT COUNT(*) FROM recurring_costs rc WHERE rc.category_id=cc.id) AS usage_count
+            FROM cost_categories cc
+            ORDER BY CASE WHEN cc.deleted_at IS NULL THEN 0 ELSE 1 END, cc.name
+            """
+        )
+        recurring_costs = q(
+            """
+            SELECT rc.*, cc.name AS category_name, sp.name AS supplier_name,
+                   s.name AS seller_name,
+                   (SELECT COUNT(*) FROM recurring_cost_occurrences occurrence
+                    WHERE occurrence.recurring_cost_id=rc.id) AS occurrence_count
+            FROM recurring_costs rc
+            JOIN cost_categories cc ON cc.id=rc.category_id
+            LEFT JOIN suppliers sp ON sp.id=rc.supplier_id
+            LEFT JOIN sellers s ON s.id=rc.seller_id
+            ORDER BY CASE rc.status WHEN 'Ativo' THEN 0 WHEN 'Pausado' THEN 1 ELSE 2 END,
+                     rc.description
+            """
+        )
+        holiday_rows = q(
+            """
+            SELECT * FROM business_holidays
+            WHERE deleted_at IS NULL
+            ORDER BY holiday_date
+            """
+        )
 
     return render(request, "finance.html", {
         "segment": segment,
+        "cost_tab": cost_tab,
         "rows": rows,
         "total": summary["amount"],
         "pager": pager,
         "orders": orders_list,
         "suppliers": suppliers_list,
         "sellers": sellers_list,
-        "cost_categories": COST_CATEGORIES,
+        "cost_categories": [
+            row["name"] for row in category_rows if not row.get("deleted_at")
+        ] if segment == "costs" else COST_CATEGORIES,
+        "category_rows": category_rows,
+        "recurring_costs": recurring_costs,
+        "holiday_rows": holiday_rows,
         "cost_centers": COST_CENTERS,
     })
 

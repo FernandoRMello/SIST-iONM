@@ -2,8 +2,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-import psycopg
-
 
 @dataclass(frozen=True)
 class OperationResult:
@@ -25,6 +23,8 @@ def build_connection_parameters(config: dict[str, Any], password: str) -> dict[s
 
 def safe_database_error_message(error: Exception) -> str:
     text = str(error).casefold()
+    if isinstance(error, ModuleNotFoundError) and "psycopg" in text:
+        return "Driver PostgreSQL não instalado no ambiente."
     if "timeout" in text or "connect" in text or "could not" in text or "refused" in text:
         return "Servidor não encontrado ou porta indisponível."
     if "password" in text or "auth" in text or "senha" in text:
@@ -38,7 +38,12 @@ def safe_database_error_message(error: Exception) -> str:
 
 class DatabaseAdminService:
     def __init__(self, connector: Callable[..., Any] | None = None):
-        self.connector = connector or psycopg.connect
+        self.connector = connector or self._default_connector
+
+    def _default_connector(self, **kwargs: Any) -> Any:
+        import psycopg
+
+        return psycopg.connect(**kwargs)
 
     def test_connection(self, config: dict[str, Any], password: str) -> OperationResult:
         try:

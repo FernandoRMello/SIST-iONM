@@ -114,3 +114,17 @@ def test_service_returns_safe_error_when_connection_fails() -> None:
     assert result.status == "error"
     assert result.message == "Servidor não encontrado ou porta indisponível."
     assert "pg-secret" not in result.message
+
+
+def test_service_reports_missing_postgresql_driver_without_breaking_import() -> None:
+    def missing_driver_connector(**kwargs):
+        raise ModuleNotFoundError("No module named 'psycopg'")
+
+    service = DatabaseAdminService(connector=missing_driver_connector)
+
+    result = service.test_connection(_config(), "pg-secret")
+
+    assert result == OperationResult(
+        status="error",
+        message="Driver PostgreSQL não instalado no ambiente.",
+    )

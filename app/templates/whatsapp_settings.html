@@ -37,6 +37,41 @@
 
   <section class="ui-card ui-admin-section">
     <header class="ui-admin-section__header">
+      <div>
+        <p class="ui-eyebrow">Conexão Embedded Signup</p>
+        <h2>Configuração do aplicativo Meta</h2>
+        <p>Configure a conexão diretamente no SIST-iONM. Valores definidos no servidor substituem os dados da interface.</p>
+      </div>
+      {{ status_badge(
+        'Configurado' if embedded_config_effective.app_id and embedded_config_effective.config_id and embedded_config_effective.redirect_uri and embedded_client_secret_status == 'Configurado' else 'Pendente',
+        'neutral'
+      ) }}
+    </header>
+    <form class="ui-admin-form ui-admin-form--wide" method="post" action="/admin/integrations/whatsapp/embedded/config">
+      <label class="ui-field" for="wa-embedded-app-id">
+        <span class="ui-field__label">Meta App ID <small>Origem efetiva: {{ embedded_config_sources.app_id }}</small></span>
+        <input class="ui-field__control" id="wa-embedded-app-id" name="embedded_app_id" value="{{ embedded_config.app_id }}" autocomplete="off" required>
+      </label>
+      <label class="ui-field" for="wa-embedded-config-id">
+        <span class="ui-field__label">Embedded Signup Config ID <small>Origem efetiva: {{ embedded_config_sources.config_id }}</small></span>
+        <input class="ui-field__control" id="wa-embedded-config-id" name="embedded_config_id" value="{{ embedded_config.config_id }}" autocomplete="off" required>
+      </label>
+      <label class="ui-field ui-admin-form__full" for="wa-embedded-redirect-uri">
+        <span class="ui-field__label">Redirect URI <small>Origem efetiva: {{ embedded_config_sources.redirect_uri }}</small></span>
+        <input class="ui-field__control" id="wa-embedded-redirect-uri" name="embedded_redirect_uri" type="url" value="{{ embedded_config.redirect_uri }}" placeholder="Informe a URL HTTPS do callback" autocomplete="off" required>
+      </label>
+      <label class="ui-field" for="wa-embedded-client-secret">
+        <span class="ui-field__label">Meta Client Secret <small>{{ embedded_client_secret_status }} · Origem: {{ embedded_client_secret_source }}</small></span>
+        <input class="ui-field__control" id="wa-embedded-client-secret" name="embedded_client_secret" type="password" autocomplete="new-password" placeholder="Preencha somente para alterar">
+      </label>
+      <div class="ui-admin-form__actions">
+        <button class="ui-button ui-button--primary" type="submit">{{ icon('save', 16) }} Salvar configuração Meta</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="ui-card ui-admin-section">
+    <header class="ui-admin-section__header">
       <div><p class="ui-eyebrow">Webhook</p><h2>URL para cadastrar na Meta</h2></div>
     </header>
     <label class="ui-field" for="whatsapp-webhook-copy">

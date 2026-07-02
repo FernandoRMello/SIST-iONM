@@ -122,6 +122,49 @@ def test_embedded_signup_session_is_completed_by_state_hash(tmp_path: Path) -> N
     assert "phone_number_id" in session["provider_payload_json"]
 
 
+def test_embedded_signup_config_migrates_and_preserves_saved_secret(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "whatsapp.db"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE whatsapp_settings (
+                id INTEGER PRIMARY KEY CHECK (id=1),
+                enabled TEXT DEFAULT 'Não',
+                api_version TEXT DEFAULT 'v23.0'
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO whatsapp_settings(id,enabled,api_version) VALUES(1,'Não','v23.0')"
+        )
+        connection.commit()
+
+    repository = WhatsAppSettingsRepository(database_path)
+    repository.init_schema()
+    repository.save_embedded_signup_config(
+        app_id="app-123",
+        config_id="config-456",
+        redirect_uri="https://sist-ionm.example.com/callback",
+        client_secret_encrypted="encrypted-secret",
+        updated_by_user_id=1,
+    )
+    repository.save_embedded_signup_config(
+        app_id="app-789",
+        config_id="config-456",
+        redirect_uri="https://sist-ionm.example.com/callback",
+        client_secret_encrypted=None,
+        updated_by_user_id=1,
+    )
+
+    settings = repository.get_settings()
+    assert settings["embedded_app_id"] == "app-789"
+    assert settings["embedded_config_id"] == "config-456"
+    assert settings["embedded_redirect_uri"] == "https://sist-ionm.example.com/callback"
+    assert settings["embedded_client_secret_encrypted"] == "encrypted-secret"
+
+
 def test_finance_keyword_without_client_returns_safe_handoff(tmp_path: Path) -> None:
     repository = _prepare_database(tmp_path / "whatsapp.db")
     contact = repository.upsert_contact("5511999990000", "Cliente")

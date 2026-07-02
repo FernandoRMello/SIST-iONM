@@ -108,6 +108,13 @@ O wizard também possui **Conectar com Meta**, que inicia o Embedded Signup ofic
 - `META_EMBEDDED_SIGNUP_REDIRECT_URI`;
 - `META_EMBEDDED_SIGNUP_CLIENT_SECRET`.
 
+Esses dados também podem ser configurados diretamente em **Administração → WhatsApp
+Business → Conexão Embedded Signup**. O uso normal não exige editar o `.env`: App ID,
+Config ID, Redirect URI e Client Secret são salvos pela interface, sendo o Client Secret
+protegido pelo `WhatsAppSecurityEngine`. Se uma variável de ambiente equivalente estiver
+definida, ela substitui o valor salvo. Em produção, `WHATSAPP_SECRET_KEY` continua
+obrigatória e a Redirect URI deve usar HTTPS.
+
 O `state` do Embedded Signup é salvo apenas como hash no banco. O callback rejeita `state` desconhecido e nunca renderiza `code`, `state`, token ou payload sensível em HTML.
 
 Defina `WHATSAPP_SECRET_KEY` no `.env` com pelo menos 32 caracteres aleatórios. Essa chave protege os segredos salvos no banco; se ela for perdida, será necessário reenviar token e app secret pelo wizard. Não copie tokens reais para commits, prints ou logs.

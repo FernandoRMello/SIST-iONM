@@ -38,6 +38,23 @@ class WhatsAppSettingsRepository:
                 )
                 """
             )
+            settings_columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(whatsapp_settings)")
+            }
+            settings_migrations = {
+                "embedded_app_id": "TEXT",
+                "embedded_config_id": "TEXT",
+                "embedded_redirect_uri": "TEXT",
+                "embedded_client_secret_encrypted": "TEXT",
+                "updated_by_user_id": "INTEGER",
+                "updated_at": "TEXT",
+            }
+            for column_name, column_type in settings_migrations.items():
+                if column_name not in settings_columns:
+                    connection.execute(
+                        f"ALTER TABLE whatsapp_settings ADD COLUMN {column_name} {column_type}"
+                    )
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS whatsapp_departments (
@@ -182,6 +199,10 @@ class WhatsAppSettingsRepository:
                 "access_token_encrypted": "",
                 "app_secret_encrypted": "",
                 "public_webhook_url": "",
+                "embedded_app_id": "",
+                "embedded_config_id": "",
+                "embedded_redirect_uri": "",
+                "embedded_client_secret_encrypted": "",
                 "setup_status": "Não configurado",
                 "last_test_status": "",
                 "last_test_message": "",
@@ -190,6 +211,50 @@ class WhatsAppSettingsRepository:
                 "updated_at": "",
             }
         return dict(row)
+
+    def save_embedded_signup_config(
+        self,
+        *,
+        app_id: str,
+        config_id: str,
+        redirect_uri: str,
+        client_secret_encrypted: str | None,
+        updated_by_user_id: int,
+    ) -> None:
+        current = self.get_settings()
+        encrypted_secret = (
+            client_secret_encrypted
+            or current.get("embedded_client_secret_encrypted")
+            or ""
+        )
+        now = datetime.now().isoformat(timespec="seconds")
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO whatsapp_settings(
+                    id,enabled,api_version,embedded_app_id,embedded_config_id,
+                    embedded_redirect_uri,embedded_client_secret_encrypted,
+                    updated_by_user_id,updated_at
+                )
+                VALUES(1,'Não','v23.0',?,?,?,?,?,?)
+                ON CONFLICT(id) DO UPDATE SET
+                    embedded_app_id=excluded.embedded_app_id,
+                    embedded_config_id=excluded.embedded_config_id,
+                    embedded_redirect_uri=excluded.embedded_redirect_uri,
+                    embedded_client_secret_encrypted=excluded.embedded_client_secret_encrypted,
+                    updated_by_user_id=excluded.updated_by_user_id,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    app_id.strip(),
+                    config_id.strip(),
+                    redirect_uri.strip(),
+                    encrypted_secret,
+                    updated_by_user_id,
+                    now,
+                ),
+            )
+            connection.commit()
 
     def save_settings(
         self,

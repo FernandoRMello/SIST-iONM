@@ -3,12 +3,13 @@ import os
 import secrets
 from collections.abc import Callable
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 
 from app.features.whatsapp.client import MetaWhatsAppClient
+from app.features.whatsapp.infrastructure.security import WhatsAppSecurityEngine
 from app.features.whatsapp.repository import WhatsAppSettingsRepository
 from app.features.whatsapp.security import (
     decrypt_secret,
@@ -57,6 +58,27 @@ def create_whatsapp_router(
             "/admin/integrations/whatsapp/embedded/callback"
         )
 
+    def effective_embedded_config(settings: dict) -> tuple[dict, dict]:
+        environment_values = {
+            "app_id": os.getenv("META_EMBEDDED_SIGNUP_APP_ID") or "",
+            "config_id": os.getenv("META_EMBEDDED_SIGNUP_CONFIG_ID") or "",
+            "redirect_uri": os.getenv("META_EMBEDDED_SIGNUP_REDIRECT_URI") or "",
+        }
+        stored_values = {
+            "app_id": settings.get("embedded_app_id") or "",
+            "config_id": settings.get("embedded_config_id") or "",
+            "redirect_uri": settings.get("embedded_redirect_uri") or "",
+        }
+        effective = {
+            key: environment_values[key] or stored_values[key]
+            for key in environment_values
+        }
+        sources = {
+            key: "Ambiente" if environment_values[key] else "Interface"
+            for key in environment_values
+        }
+        return effective, sources
+
     @router.get("/integrations/whatsapp/webhook")
     def whatsapp_webhook_verify(request: Request):
         repo = repository()
@@ -96,6 +118,11 @@ def create_whatsapp_router(
             return denied
         repo = repository()
         settings = repo.get_settings()
+        embedded_config, embedded_config_sources = effective_embedded_config(settings)
+        embedded_client_secret_configured = bool(
+            os.getenv("META_EMBEDDED_SIGNUP_CLIENT_SECRET")
+            or settings.get("embedded_client_secret_encrypted")
+        )
         masked = {
             "access_token": mask_secret(settings.get("access_token_encrypted")),
             "app_secret": mask_secret(settings.get("app_secret_encrypted")),
@@ -125,6 +152,21 @@ def create_whatsapp_router(
                     "",
                 ),
                 "webhook_url": webhook_url,
+                "embedded_config": {
+                    "app_id": settings.get("embedded_app_id") or "",
+                    "config_id": settings.get("embedded_config_id") or "",
+                    "redirect_uri": settings.get("embedded_redirect_uri") or "",
+                },
+                "embedded_config_effective": embedded_config,
+                "embedded_config_sources": embedded_config_sources,
+                "embedded_client_secret_status": (
+                    "Configurado" if embedded_client_secret_configured else "Não configurado"
+                ),
+                "embedded_client_secret_source": (
+                    "Ambiente"
+                    if os.getenv("META_EMBEDDED_SIGNUP_CLIENT_SECRET")
+                    else "Interface"
+                ),
             },
         )
 
@@ -170,9 +212,11 @@ def create_whatsapp_router(
         if denied:
             return denied
         user = current_user(request) or {}
-        app_id = os.getenv("META_EMBEDDED_SIGNUP_APP_ID")
-        config_id = os.getenv("META_EMBEDDED_SIGNUP_CONFIG_ID")
-        redirect_uri = os.getenv("META_EMBEDDED_SIGNUP_REDIRECT_URI")
+        settings = repository().get_settings()
+        embedded_config, _ = effective_embedded_config(settings)
+        app_id = embedded_config["app_id"]
+        config_id = embedded_config["config_id"]
+        redirect_uri = embedded_config["redirect_uri"]
         missing = [
             name
             for name, value in {
@@ -184,9 +228,8 @@ def create_whatsapp_router(
         ]
         if missing:
             request.session["whatsapp_setup_warning"] = (
-                "Configure "
-                + ", ".join(missing)
-                + " no .env antes de conectar com a Meta."
+                "Preencha App ID, Config ID e Redirect URI na seção "
+                "Conexão Embedded Signup antes de conectar com a Meta."
             )
             return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
         state_token = secrets.token_urlsafe(32)
@@ -206,6 +249,59 @@ def create_whatsapp_router(
             f"https://www.facebook.com/dialog/oauth?{query}",
             status_code=303,
         )
+
+    @router.post("/admin/integrations/whatsapp/embedded/config")
+    async def whatsapp_embedded_signup_config(request: Request):
+        denied = admin_required(request)
+        if denied:
+            return denied
+        user = current_user(request) or {}
+        form = await request.form()
+        app_id = str(form.get("embedded_app_id") or "").strip()
+        config_id = str(form.get("embedded_config_id") or "").strip()
+        redirect_uri = str(form.get("embedded_redirect_uri") or "").strip()
+        client_secret = str(form.get("embedded_client_secret") or "").strip()
+        repo = repository()
+        current = repo.get_settings()
+
+        if not app_id or not config_id or not redirect_uri:
+            return PlainTextResponse(
+                "App ID, Config ID e Redirect URI são obrigatórios.",
+                status_code=400,
+            )
+        parsed_redirect = urlparse(redirect_uri)
+        is_local = parsed_redirect.hostname in {"127.0.0.1", "localhost"}
+        is_production = os.getenv("SIST_IONM_ENVIRONMENT") == "production"
+        if (
+            not parsed_redirect.netloc
+            or parsed_redirect.scheme not in {"http", "https"}
+            or (is_production and parsed_redirect.scheme != "https")
+            or (parsed_redirect.scheme == "http" and not is_local)
+        ):
+            return PlainTextResponse(
+                "Redirect URI inválida. Use HTTPS ou HTTP apenas em localhost.",
+                status_code=400,
+            )
+        if (
+            not client_secret
+            and not current.get("embedded_client_secret_encrypted")
+            and not os.getenv("META_EMBEDDED_SIGNUP_CLIENT_SECRET")
+        ):
+            return PlainTextResponse("Meta Client Secret é obrigatório.", status_code=400)
+
+        encrypted_secret = (
+            WhatsAppSecurityEngine().encrypt_secret(client_secret)
+            if client_secret
+            else None
+        )
+        repo.save_embedded_signup_config(
+            app_id=app_id,
+            config_id=config_id,
+            redirect_uri=redirect_uri,
+            client_secret_encrypted=encrypted_secret,
+            updated_by_user_id=int(user.get("id") or 0),
+        )
+        return RedirectResponse("/admin/integrations/whatsapp", status_code=303)
 
     @router.get("/admin/integrations/whatsapp/embedded/callback")
     def whatsapp_embedded_signup_callback(request: Request):

@@ -284,7 +284,85 @@ def test_admin_can_start_embedded_signup_without_exposing_state(
     assert "state-token" not in page.text
 
 
-def test_embedded_signup_start_requires_meta_environment(
+def test_admin_can_configure_embedded_signup_inside_application(
+    admin_client: TestClient,
+    legacy_test_state: LegacyTestState,
+    monkeypatch,
+) -> None:
+    monkeypatch.delenv("META_EMBEDDED_SIGNUP_APP_ID", raising=False)
+    monkeypatch.delenv("META_EMBEDDED_SIGNUP_CONFIG_ID", raising=False)
+    monkeypatch.delenv("META_EMBEDDED_SIGNUP_REDIRECT_URI", raising=False)
+    monkeypatch.setenv("WHATSAPP_SECRET_KEY", "embedded-interface-test-key")
+
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/embedded/config",
+        data={
+            "embedded_app_id": "app-interface-123",
+            "embedded_config_id": "config-interface-456",
+            "embedded_redirect_uri": (
+                "https://sist-ionm.example.com/admin/integrations/"
+                "whatsapp/embedded/callback"
+            ),
+            "embedded_client_secret": "client-secret-interface",
+        },
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    with sqlite3.connect(legacy_test_state.database_path) as connection:
+        row = connection.execute(
+            """
+            SELECT embedded_app_id,embedded_config_id,embedded_redirect_uri,
+                   embedded_client_secret_encrypted
+            FROM whatsapp_settings WHERE id=1
+            """
+        ).fetchone()
+    assert row[:3] == (
+        "app-interface-123",
+        "config-interface-456",
+        "https://sist-ionm.example.com/admin/integrations/whatsapp/embedded/callback",
+    )
+    assert row[3] != "client-secret-interface"
+
+    page = admin_client.get("/admin/integrations/whatsapp")
+    assert page.status_code == 200
+    assert 'name="embedded_app_id"' in page.text
+    assert 'name="embedded_config_id"' in page.text
+    assert 'name="embedded_redirect_uri"' in page.text
+    assert 'name="embedded_client_secret"' in page.text
+    assert "client-secret-interface" not in page.text
+
+    start = admin_client.post(
+        "/admin/integrations/whatsapp/embedded/start",
+        follow_redirects=False,
+    )
+    assert start.status_code == 303
+    assert "client_id=app-interface-123" in start.headers["location"]
+    assert "config_id=config-interface-456" in start.headers["location"]
+
+
+def test_environment_overrides_embedded_signup_interface_config(
+    admin_client: TestClient,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("META_EMBEDDED_SIGNUP_APP_ID", "app-environment")
+    monkeypatch.setenv("META_EMBEDDED_SIGNUP_CONFIG_ID", "config-environment")
+    monkeypatch.setenv(
+        "META_EMBEDDED_SIGNUP_REDIRECT_URI",
+        "https://environment.example.com/callback",
+    )
+
+    response = admin_client.post(
+        "/admin/integrations/whatsapp/embedded/start",
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert "client_id=app-environment" in response.headers["location"]
+    assert "config_id=config-environment" in response.headers["location"]
+
+
+def test_embedded_signup_start_requires_saved_or_environment_configuration(
     admin_client: TestClient,
     monkeypatch,
 ) -> None:
@@ -300,7 +378,7 @@ def test_embedded_signup_start_requires_meta_environment(
     assert response.status_code == 303
     assert response.headers["location"] == "/admin/integrations/whatsapp"
     page = admin_client.get("/admin/integrations/whatsapp")
-    assert "Configure META_EMBEDDED_SIGNUP_APP_ID" in page.text
+    assert "Preencha App ID, Config ID e Redirect URI" in page.text
     assert "not-configured" not in page.text
 
 

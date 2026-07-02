@@ -3,7 +3,6 @@ import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,20 +23,6 @@ class LegacyTestState:
     seller_username: str
     seller_password: str
     ids: dict[str, int]
-
-
-def _patch_legacy_template_response(monkeypatch: pytest.MonkeyPatch) -> None:
-    original_template_response = legacy.templates.TemplateResponse
-
-    def compat_template_response(*args: Any, **kwargs: Any) -> Any:
-        if args and isinstance(args[0], str):
-            name = args[0]
-            context = args[1] if len(args) > 1 else kwargs.get("context")
-            request = (context or {}).get("request")
-            return original_template_response(request, name, context, **kwargs)
-        return original_template_response(*args, **kwargs)
-
-    monkeypatch.setattr(legacy.templates, "TemplateResponse", compat_template_response)
 
 
 def _seed_legacy_database(database_path: Path) -> LegacyTestState:
@@ -464,7 +449,6 @@ def legacy_test_state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Legacy
     test_database = tmp_path / "overpriceon_web.db"
     shutil.copy2(source_database, test_database)
     monkeypatch.setattr(legacy, "DB_PATH", test_database)
-    _patch_legacy_template_response(monkeypatch)
     return _seed_legacy_database(test_database)
 
 

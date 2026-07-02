@@ -359,7 +359,7 @@ def render(request: Request, template: str, context=None):
         "current_path": request.url.path,
         "can_view_bi": bool(user and user.get("username") == "fernando.mello"),
     })
-    return templates.TemplateResponse(template, ctx)
+    return templates.TemplateResponse(request, template, ctx)
 
 
 def require_login(request: Request):

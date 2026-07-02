@@ -9,18 +9,32 @@ echo ========================================
 
 where python >nul 2>nul
 if errorlevel 1 (
-  echo Python nao encontrado. Instale o Python 3.11 ou superior.
+  echo Python nao encontrado. Instale o Python 3.13.
   pause
   exit /b 1
 )
 
-if not exist .venv (
-  python -m venv .venv
+set "VENV_NEEDS_REPAIR=0"
+if not exist ".venv\pyvenv.cfg" set "VENV_NEEDS_REPAIR=1"
+if not exist ".venv\Scripts\python.exe" set "VENV_NEEDS_REPAIR=1"
+
+if "%VENV_NEEDS_REPAIR%"=="1" (
+  echo Preparando o ambiente virtual...
+  python -m venv --clear .venv
+  if errorlevel 1 (
+    echo Nao foi possivel preparar o ambiente virtual.
+    pause
+    exit /b 1
+  )
 )
 
-call .venv\Scripts\activate
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+".venv\Scripts\python.exe" -m pip install --upgrade pip
+".venv\Scripts\python.exe" -m pip install -r requirements.lock
+if errorlevel 1 (
+  echo Falha ao instalar as dependencias.
+  pause
+  exit /b 1
+)
 
 echo.
 echo Sistema local:
@@ -31,6 +45,6 @@ ipconfig | findstr /i "IPv4"
 echo.
 start http://127.0.0.1:8000
 
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+".venv\Scripts\python.exe" -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 pause
